@@ -9,11 +9,22 @@
   "fields": [
     {
       "name": "title",
-      "type": "string",
+      "type": "shortText",
       "constraints": {},
       "description": {
         "path": "Title",
         "description": "Title of the article"
+      }
+    },
+    {
+      "name": "author",
+      "type": "component",
+      "constraints": {
+        "type": "people.author"
+      },
+      "description": {
+        "path": "Author",
+        "description": "Author of the article"
       }
     }
   ]

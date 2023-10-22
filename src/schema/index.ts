@@ -1,25 +1,16 @@
-import {DataType, Schema, SchemaField} from "./types";
+import {Schema, SchemaField} from "./types";
 import {SchemaFile} from "./reader";
 import {pick} from "../utils/objects";
 import {basicDataTypes} from "./basicDataTypes";
+import {getDataType, registerDataType} from "./registry";
+import {advancedDataTypes} from "./advancedDataTypes";
 
-const supportedTypes: Record<string, DataType> = {}
+export * from "./registry"
 
-export const registerDataType = (type: DataType): void => {
-    if (type.name in supportedTypes)
-        throw new Error(`Data type ${type.name} is already registered`)
-
-    supportedTypes[type.name] = type
-}
-
-basicDataTypes.forEach(registerDataType)
-
-export const getDataType = (name: string): DataType | null => {
-    if (name in supportedTypes)
-        return supportedTypes[name]
-
-    return null
-}
+[
+    ...basicDataTypes,
+    ...advancedDataTypes
+].forEach(registerDataType)
 
 export const constructSchema = (schemaFile: SchemaFile): Schema => {
     const fields = schemaFile.fields.map(rawField => {

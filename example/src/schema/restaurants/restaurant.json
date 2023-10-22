@@ -1,0 +1,29 @@
+{
+  "name": "restaurant",
+  "type": "entity",
+  "description": {
+    "path": "Restaurant"
+  },
+  "fields": [
+    {
+      "name": "name",
+      "type": "shortText",
+      "constraints": {
+        "required": true
+      },
+      "description": {
+        "path": "Name"
+      }
+    },
+    {
+      "name": "review",
+      "type": "component",
+      "constraints": {
+        "type": "restaurant.review"
+      },
+      "description": {
+        "path": "Review"
+      }
+    }
+  ]
+}

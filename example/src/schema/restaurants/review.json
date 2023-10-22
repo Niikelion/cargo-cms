@@ -1,0 +1,29 @@
+{
+  "name": "restaurant.review",
+  "type": "component",
+  "description": {
+    "path": "Review"
+  },
+  "fields": [
+    {
+      "name": "author",
+      "type": "shortText",
+      "constraints": {
+        "required": true
+      },
+      "description": {
+        "path": "Author"
+      }
+    },
+    {
+      "name": "text",
+      "type": "longText",
+      "constraints": {
+        "required": true
+      },
+      "description": {
+        "path": "Text"
+      }
+    }
+  ]
+}

@@ -1,12 +1,11 @@
 import {SchemaFile, SchemaFileFieldSchema} from "./reader";
-import knex from "knex";
 import {TableBuilder} from "../database/types";
 
 export type FieldConstraints = SchemaField["constraints"]
 
 export type DataType = {
     readonly name: string
-    generateField: (builder: TableBuilder, name: string, data: FieldConstraints) => void,
+    generateField: (builder: TableBuilder, path: string, data: FieldConstraints, table: string) => void,
     verifyData: (data: FieldConstraints) => string | null
 }
 

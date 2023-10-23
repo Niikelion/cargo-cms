@@ -19,7 +19,8 @@
       "name": "review",
       "type": "component",
       "constraints": {
-        "type": "restaurant.review"
+        "type": "restaurant.review",
+        "list": true
       },
       "description": {
         "path": "Review"

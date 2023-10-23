@@ -6,7 +6,7 @@ import {TableBuilder} from "../database/types";
 
 export const validatedDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string, payloadValidator: z.ZodType<Payload, PayloadDef>,
-    generateField: (db: TableBuilder, name: string, data: Payload) => void,
+    generateField: (db: TableBuilder, name: string, data: Payload, table: string) => void,
     verifier?: (data: Payload) => string | null
 ) => ({
     name,
@@ -21,22 +21,21 @@ export const validatedDataType = <Payload extends NonNullable<FieldConstraints>,
 
         return null
     },
-    generateField(builder, name, data) {
-        generateField(builder, name.replace(".", "_"), data as Payload)
+    generateField(builder, name, data, table) {
+        generateField(builder, name.replace(".", "_"), data as Payload, table)
     }
 } satisfies DataType)
 
 export const singleFieldDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string,
-    payloadValidator: z.ZodType<Payload, PayloadDef>, builder: (db: TableBuilder, name: string, data: Payload) => knex.Knex.ColumnBuilder,
+    payloadValidator: z.ZodType<Payload, PayloadDef>, builder: (db: TableBuilder, name: string, data: Payload, table: string) => knex.Knex.ColumnBuilder,
     validator?: (data: Payload) => string | null
 ) =>
-    validatedDataType(name, payloadValidator, (tableBuilder, name, data) => {
-        tableBuilder.useName(name)
-        const field = builder(tableBuilder, name, data as Payload)
+    validatedDataType(name, payloadValidator, (tableBuilder, name, data, table) => {
+        tableBuilder.useField(name)
+        const field = builder(tableBuilder, name, data as Payload, table)
 
-        if (field.alter && tableBuilder.existed(name))
-            field.alter()
+        tableBuilder.useField(name, field)
 
         if (data.unique)
             field.unique()

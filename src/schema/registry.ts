@@ -50,4 +50,4 @@ export const getEntityType = (name: string): EntityType | null => {
     return null
 }
 
-export const getAllEntityTypes = Object.values(definedEntities)
+export const getAllEntityTypes = () => Object.values(definedEntities)

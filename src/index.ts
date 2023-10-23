@@ -34,7 +34,7 @@ const main = async () => {
     const db = await createDatabase(path.resolve(root, `src/database.js`))
 
     try {
-        for (const entity of getAllEntityTypes) {
+        for (const entity of getAllEntityTypes()) {
             await db.constructTable(entity)
         }
     } finally {

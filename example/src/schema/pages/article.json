@@ -18,9 +18,10 @@
     },
     {
       "name": "author",
-      "type": "component",
+      "type": "relation",
       "constraints": {
-        "type": "people.author"
+        "type": "people.author",
+        "relation": "one"
       },
       "description": {
         "path": "Author",

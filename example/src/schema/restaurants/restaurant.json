@@ -16,11 +16,12 @@
       }
     },
     {
-      "name": "review",
-      "type": "component",
+      "name": "reviews",
+      "type": "relation",
       "constraints": {
         "type": "restaurant.review",
-        "list": true
+        "relation": "oneToMany",
+        "field": "restaurant"
       },
       "description": {
         "path": "Review"

@@ -2,11 +2,7 @@ import {z} from "zod";
 import {fieldConstraintsSchema} from "./reader";
 import {isDefined} from "../utils/filters";
 import {singleFieldDataType} from "./utils";
-import {ColumnBuilder} from "../database/types";
-
-const nameGenerator = (prefix: string) => function (strings: TemplateStringsArray, ...args: any[]) {
-    return `${prefix}_${String.raw({raw: strings}, ...args)}`
-}
+import {NumericField, TextField} from "../database/builder";
 
 const stringDataPayload = fieldConstraintsSchema.extend({
     max: z.number().optional(),
@@ -14,63 +10,44 @@ const stringDataPayload = fieldConstraintsSchema.extend({
     regex: z.string().optional()
 })
 
-const addStringChecks = (field: ColumnBuilder, name: string, data: z.infer<typeof stringDataPayload>) => {
-    const c = nameGenerator(name)
-
+const addStringChecks = (field: TextField, name: string, data: z.infer<typeof stringDataPayload>) => {
     if (isDefined(data.max))
-        field.checkLength('<=', data.max, c`max_length`)
+        field.length("le", data.max)
 
     if (isDefined(data.min))
-        field.checkLength('>=', data.min, c`min_length`)
+        field.length("ge", data.min)
 
     if (isDefined(data.regex))
-        field.checkRegex(data.regex, c`regex`)
+        field.regex(data.regex)
 }
 
-const shortTextDataType = singleFieldDataType("shortText", stringDataPayload, (builder, name, data) => {
-    const field = builder.string(name)
-    addStringChecks(field, name, data)
-    return field
-})
+const shortTextDataType = singleFieldDataType("shortText", "string", stringDataPayload, (table, name, data) =>
+    table.string(name, c => addStringChecks(c, name, data)).fields[name])
 
-const longTextDataType = singleFieldDataType("longText", stringDataPayload, (builder, name, data) => {
-    const field = builder.text(name)
-    addStringChecks(field, name, data)
-    return field
-})
+const longTextDataType = singleFieldDataType("longText", "string", stringDataPayload, (table, name, data) =>
+    table.text(name, c => addStringChecks(c, name, data)).fields[name])
 
 const numberDataPayload = fieldConstraintsSchema.extend({
     max: z.number().optional(),
     min: z.number().optional()
 })
 
-const addNumberChecks = (field: ColumnBuilder, name: string, data: z.infer<typeof numberDataPayload>) => {
-    const c = nameGenerator(name)
-
+const addNumberChecks = (field: NumericField, name: string, data: z.infer<typeof numberDataPayload>) => {
     if (isDefined(data.max) && isDefined(data.min))
-        field.checkBetween([data.min, data.max], c`range`)
+        field.inRange(data.min, data.max)
 }
 
-const integerDataType = singleFieldDataType("integer", numberDataPayload, (builder, name, data) => {
-    const field = builder.integer(name)
-    addNumberChecks(field, name, data)
-    return field
-})
+const integerDataType = singleFieldDataType("integer", "number", numberDataPayload, (table, name, data) =>
+    table.int(name, c => addNumberChecks(c, name, data)).fields[name])
 
-const floatDataType = singleFieldDataType("float", numberDataPayload, (builder, name, data) => {
-    const field = builder.float(name)
-    addNumberChecks(field, name, data)
-    return field
-})
+const floatDataType = singleFieldDataType("float", "number", numberDataPayload, (table, name, data) =>
+    table.float(name, c => addNumberChecks(c, name, data)).fields[name])
 
-const doubleDataType = singleFieldDataType("double", numberDataPayload, (builder, name, data) => {
-    const field = builder.double(name)
-    addNumberChecks(field, name, data)
-    return field
-})
+const doubleDataType = singleFieldDataType("double", "number", numberDataPayload, (table, name, data) =>
+    table.double(name, c => addNumberChecks(c, name, data)).fields[name])
 
-const booleanDataType = singleFieldDataType("boolean", fieldConstraintsSchema, (builder, name) =>
-    builder.boolean(name))
+const booleanDataType = singleFieldDataType("boolean", "number", fieldConstraintsSchema, (table, name) =>
+    table.bool(name).fields[name])
 
 export const basicDataTypes = [
     longTextDataType,

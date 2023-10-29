@@ -45,6 +45,7 @@ export const createDatabase = async (configPath: string) => {
     const db = knex(config ?? {})
 
     return {
+        raw: db,
         async constructTable(schema: Schema) {
             await constructTable(db, schema)
         },

@@ -1,6 +1,6 @@
 {
   "name": "people.author",
-  "type": "component",
+  "type": "entity",
   "description": {
     "path": "Peoples/Author",
     "description": "Author",

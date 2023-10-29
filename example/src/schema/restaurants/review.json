@@ -24,6 +24,18 @@
       "description": {
         "path": "Text"
       }
+    },
+    {
+      "name": "restaurant",
+      "type": "relation",
+      "constraints": {
+        "type": "restaurant",
+        "relation": "manyToOne",
+        "field": "reviews"
+      },
+      "description": {
+        "path": "Restaurant"
+      }
     }
   ]
 }

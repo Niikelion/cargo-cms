@@ -1,12 +1,12 @@
 import {z} from "zod";
-import knex from "knex";
-import {DataType, FieldConstraints} from "./types";
+import {DataType, FieldConstraints, Structure, StructureField} from "./types";
 import {stringifyZodError} from "../utils/errors";
-import {TableBuilder} from "../database/types";
+import {Field, Table} from "../database/builder";
 
 export const validatedDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string, payloadValidator: z.ZodType<Payload, PayloadDef>,
-    generateField: (db: TableBuilder, name: string, data: Payload, table: string) => void,
+    generateColumns: (table: Table<never>, name: string, data: Payload) => Table<string>[] | null,
+    generateStructure: (table: Table<never>, name: string, data: Payload) => Structure,
     verifier?: (data: Payload) => string | null
 ) => ({
     name,
@@ -21,27 +21,36 @@ export const validatedDataType = <Payload extends NonNullable<FieldConstraints>,
 
         return null
     },
-    generateField(builder, name, data, table) {
-        generateField(builder, name.replace(".", "_"), data as Payload, table)
+    generateColumns(table, name, data) {
+        return generateColumns(table, name.replace(".", "_"), data as Payload)
+    },
+    generateStructure(table, name, data) {
+        return generateStructure(table, name.replace(".", "_"), data as Payload)
     }
 } satisfies DataType)
 
 export const singleFieldDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string,
-    payloadValidator: z.ZodType<Payload, PayloadDef>, builder: (db: TableBuilder, name: string, data: Payload, table: string) => knex.Knex.ColumnBuilder,
+    type: Exclude<StructureField["type"], "array" | "object" | "custom">,
+    payloadValidator: z.ZodType<Payload, PayloadDef>,
+    builder: (table: Table<never>, name: string, data: Payload) => Field,
     validator?: (data: Payload) => string | null
 ) =>
-    validatedDataType(name, payloadValidator, (tableBuilder, name, data, table) => {
-        tableBuilder.useField(name)
-        const field = builder(tableBuilder, name, data as Payload, table)
-
-        tableBuilder.useField(name, field)
+    validatedDataType(name, payloadValidator, (table, name, data) => {
+        const field = builder(table, name, data as Payload)
 
         if (data.unique)
             field.unique()
 
-        if (data.required)
-            field.notNullable()
-        else
-            field.nullable()
+        field.nullable(!(data.required ?? false))
+
+        return null
+    }, (table, name): Structure => {
+        return {
+            data: { type, id: `${table.name}.${name}` }, joins: {}
+        }
     }, validator)
+
+export const nameGenerator = (prefix: string) => function (strings: TemplateStringsArray, ...args: any[]) {
+    return `${prefix}_${String.raw({raw: strings}, ...args)}`
+}

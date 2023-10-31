@@ -1,11 +1,11 @@
-import {Schema, SchemaField, Structure, StructureField} from "./types";
+import {Schema, SchemaField, SelectorStructure, Structure, StructureField} from "./types";
 import {SchemaFile, SchemaFileFieldSchema} from "./reader";
 import {pick} from "../utils/objects";
 import {basicDataTypes} from "./basicDataTypes";
 import {getDataType, registerDataType} from "./registry";
 import {advancedDataTypes} from "./advancedDataTypes";
-import {build} from "../database/builder";
 import {getTableName} from "../database/table";
+import {descendSelector} from "./utils";
 
 export * from "./registry"
 
@@ -61,15 +61,19 @@ export const constructSchema = (schemaFile: SchemaFile): Schema => {
     return ret
 }
 
-//TODO: detect infinite loops, maybe generate structure with constraints?
-export const generateStructure = (schema: Schema): Structure => {
+export const generateStructure = (schema: Schema, selector: SelectorStructure): Structure => {
     const fields: Record<string, StructureField> = {}
     const joins: Structure["joins"] = {}
 
-    const table = build.table(getTableName(schema))
+    const table = getTableName(schema)
 
     schema.fields.forEach(field => {
-        const structure = field.type.generateStructure(table, field.name, field.constraints)
+        const fieldSelector = descendSelector(selector, field.name)
+
+        if (fieldSelector === null)
+            return
+
+        const structure = field.type.generateStructure(table, field.name, field.constraints, fieldSelector)
 
         fields[field.name] = structure.data
         for (const join in structure.joins)

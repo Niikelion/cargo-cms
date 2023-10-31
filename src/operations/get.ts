@@ -2,19 +2,19 @@ import {JSONValue} from "../server/types";
 import {generateStructure, getEntityType} from "../schema";
 import {RestApiError} from "../server/utils";
 import knex from "knex";
-import {InputStructure, Structure, StructureField} from "../schema/types";
+import {SelectorStructure, Structure, StructureField} from "../schema/types";
 import {getTableName} from "../database/table";
 import assert from "assert";
 import {isArray, isBool, isDefined, isNumber, isString} from "../utils/filters";
 
-//TODO: add population, filtering, ordering and stuff like that
-export const getEntities = async (db: knex.Knex, typeName: string): Promise<JSONValue> => {
+//TODO: filtering, ordering and stuff like that
+export const getEntities = async (db: knex.Knex, typeName: string, selector: SelectorStructure): Promise<JSONValue> => {
     const type = getEntityType(typeName)
 
     if (type === null)
         throw new RestApiError(`Entity type ${typeName} not found`, 404)
 
-    const structure = generateStructure(type)
+    const structure = generateStructure(type, selector)
 
     console.dir(structure, {depth: 10})
 
@@ -55,7 +55,7 @@ const restructureData = (source: Record<string, PrimitiveType>): Record<string, 
 
 //TODO: add population, filtering, ordering and stuff like that
 export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, q?: knex.Knex.QueryBuilder): Promise<JSONValue[]> => {
-    type Handler = (db: knex.Knex, id: number, input: InputStructure) => Promise<JSONValue>
+    type Handler = (db: knex.Knex, id: number) => Promise<JSONValue>
 
     const query = q ?? db(tableName)
     assert(query !== undefined)
@@ -75,7 +75,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                 const fetch = s.fetch
 
                 if (fetch !== undefined) {
-                    pushCustom((db, id, _) => {
+                    pushCustom((db, id) => {
                         const [tableName, query] = fetch(db, id)
 
                         return fetchByStructure(db, {
@@ -92,7 +92,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                 break
             }
             case "array": {
-                pushCustom((db, id, _) => {
+                pushCustom((db, id) => {
                     const [tableName, query] = s.fetch(db, id)
                     return fetchByStructure(db, s, tableName, query)
                 })
@@ -119,7 +119,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
         const id = result._id
 
         for (const [path, handler] of customs) {
-            const tree = await handler(db, id, ret)
+            const tree = await handler(db, id)
             const parts = path.split('.')
             let root = ret
             const end = parts.pop()

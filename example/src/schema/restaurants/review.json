@@ -1,6 +1,6 @@
 {
   "name": "restaurant.review",
-  "type": "component",
+  "type": "entity",
   "description": {
     "path": "Review"
   },

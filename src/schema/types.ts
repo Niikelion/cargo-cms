@@ -5,7 +5,7 @@ import {JSONValue} from "../server/types";
 
 export type FieldConstraints = SchemaField["constraints"]
 
-export type InputStructure = {}
+export type SelectorStructure = string | string[] | true | { [k: string]: SelectorStructure }
 
 type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]
 
@@ -25,7 +25,7 @@ export type StructureField = {
     joins: Record<string, (builder: knex.Knex.QueryBuilder) => void>
 })) | {
     type: "custom",
-    handler: (db: knex.Knex, id: number, input: InputStructure) => Promise<JSONValue>
+    handler: (db: knex.Knex, id: number) => Promise<JSONValue>
 }
 
 export type Structure = {
@@ -37,8 +37,8 @@ export type DataType = {
     readonly name: string
     generateColumns: (table: Table<never>, path: string, data: FieldConstraints) => Table<string>[] | null,
     //TODO: maybe pass some uuid generator along the way for unique join aliases in case of multiple joins to the same table in one query
-    //TODO: pass inputStructure along the way to limit depth and width of the structure tree and circumvent infinite loop problems
-    generateStructure: (table: Table<never>, path: string, data: FieldConstraints) => Structure
+    //TODO: maybe include some blacklist of types to allow downstream generators to avoid infinite looping?
+    generateStructure: (table: string, path: string, data: FieldConstraints, selector: SelectorStructure) => Structure
     verifyData: (data: FieldConstraints) => string | null
 }
 

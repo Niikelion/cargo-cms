@@ -43,16 +43,17 @@ const main = async () => {
 
     try {
         console.log("Constructing tables")
-        for (const entity of getAllEntityTypes()) {
-            await db.constructTable(entity)
-        }
+        await db.constructTables(getAllEntityTypes())
         console.log("Done")
 
         if (useServer) {
             console.log("Running backend server")
             await runServer(3000)
         } else {
-            await getEntities(db.raw, "restaurant")
+            await getEntities(db.raw, "restaurant", {
+                name: true,
+                reviews: ["text", "author"]
+            })
         }
 
     } finally {

@@ -2,7 +2,7 @@ import knex from "knex"
 import * as fs from "fs/promises";
 import path from "path";
 import {Schema} from "../schema/types";
-import {constructTable} from "./table";
+import {constructTable, constructTables} from "./table";
 import {isBool, isNumber} from "../utils/filters";
 
 const getVar = (variableName: string, defaultValue: unknown) => {
@@ -46,6 +46,9 @@ export const createDatabase = async (configPath: string) => {
 
     return {
         raw: db,
+        async constructTables(schemas: Schema[]) {
+            await constructTables(db, schemas)
+        },
         async constructTable(schema: Schema) {
             await constructTable(db, schema)
         },

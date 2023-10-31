@@ -6,6 +6,22 @@ import schemaInspector from 'knex-schema-inspector';
 
 export const getTableName = (schema: Schema) => schema.name.replace(".", "_")
 
+export const constructTables = async (db: knex.Knex, schemas: Schema[]) => {
+    const oldTables = await schemaInspector(db).tables()
+
+    const tables = await Promise.all(schemas.map(schema => constructTable(db, schema)))
+
+    const tableNames = tables.flat().map(table => table.name)
+    const newTables = new Set<string>(tableNames)
+
+    for (const table of oldTables) {
+        if (newTables.has(table))
+            continue
+
+        await db.schema.dropTable(table).then()
+    }
+}
+
 export const constructTable = async (db: knex.Knex, schema: Schema) => {
     const name = getTableName(schema)
 
@@ -16,7 +32,7 @@ export const constructTable = async (db: knex.Knex, schema: Schema) => {
     await rawConstructTable(db,table)
     await Promise.all(tables.map(table => rawConstructTable(db, table)))
 
-    return tables
+    return [ table, ...tables ]
 }
 
 export const rawConstructTable = async (db: knex.Knex, table: Table<never>) => {

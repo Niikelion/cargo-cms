@@ -1,4 +1,4 @@
-import {nameGenerator, validatedDataType} from "./utils";
+import {descendSelector, nameGenerator, validatedDataType} from "./utils";
 import {fieldConstraintsSchema} from "./reader";
 import {z} from "zod";
 import {getComponentType, getEntityType} from "./registry";
@@ -36,7 +36,7 @@ const componentDataType = validatedDataType("component", componentDataPayload, (
     const tables = type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints)).filter(isDefined).flat()
 
     return [newTable, ...tables]
-}, (table, name, data) => {
+}, (table, name, data, selector) => {
      const c = nameGenerator(name)
 
     const type = getComponentType(data.type)
@@ -48,13 +48,19 @@ const componentDataType = validatedDataType("component", componentDataPayload, (
     const fields: Record<string, StructureField> = {}
     const joins: Structure["joins"] = {}
 
-    const tableName = isList ? `${table.name}__${name}` : table.name
-    const newTable = isList ? build.table(tableName) : table
+    const tableName = isList ? `${table}__${name}` : table
+    const newTable = isList ? tableName : table
 
-    const subStructures = type.fields.map(field => ({
-        field,
-        structure: field.type.generateStructure(newTable, isList ? field.name : c`${field.name}`, field.constraints)
-    }))
+    const subStructures = type.fields.map(field => {
+        const fieldSelector = descendSelector(selector, field.name)
+        if (fieldSelector === null)
+            return null
+
+        return ({
+            field,
+            structure: field.type.generateStructure(newTable, isList ? field.name : c`${field.name}`, field.constraints, fieldSelector)
+        });
+    }).filter(isDefined)
     subStructures.forEach(structure => {
         fields[structure.field.name] = structure.structure.data
         Object.entries(structure.structure.joins).forEach(([name, value]) => {
@@ -159,7 +165,7 @@ const relationDataType = validatedDataType("relation", relationDataPayload, (tab
     } as const satisfies Record<Relation, () => Table<string>[] | null>
 
     return relationHandlers[relation]()
-}, (table, name, data) => {
+}, (table, name, data, selector) => {
     const type = getEntityType(data.type)
 
     assert(type !== null)
@@ -168,20 +174,20 @@ const relationDataType = validatedDataType("relation", relationDataPayload, (tab
 
     const otherTableName = getTableName(type)
 
-    const structure = generateStructure(type)
+    const structure = generateStructure(type, selector)
 
     if (relation === "one" || relation === "oneToOne" || relation === "manyToOne") {
         return {
             data: structure.data,
             joins: {
-                [otherTableName]: query => query.leftJoin(otherTableName, `${table.name}.${name}`, `${otherTableName}._id`),
+                [otherTableName]: query => query.leftJoin(otherTableName, `${table}.${name}`, `${otherTableName}._id`),
                 ...structure.joins
             }
         } satisfies Structure
     }
 
     if (relation === "many") {
-        const linkTable = `${table.name}__${name}`
+        const linkTable = `${table}__${name}`
 
         return {
             data: {
@@ -193,21 +199,32 @@ const relationDataType = validatedDataType("relation", relationDataPayload, (tab
         } satisfies Structure
     }
 
+
     assert(data.field !== undefined)
 
     const otherName = data.field
+    if (relation === "oneToMany") {
+        return {
+            data: {
+                type: "array",
+                ...structure,
+                fetch: (db, id) => [ otherTableName, db(otherTableName).where({ [otherName]: id }) ]
+            },
+            joins: {}
+        }
+    }
 
-    const t1 = `${table.name}__${name}`
+    const t1 = `${table}__${name}`
     const t2 =  `${otherTableName}__${otherName}`
 
     const getNames = () => {
         if (t1 < t2)
-            return [t1, table.name, otherTableName, "_entityId", "_targetId"]
+            return [t1, "_entityId", "_targetId"]
 
-        return [t2, otherTableName, table.name, "_targetId", "_entityId"]
+        return [t2, "_targetId", "_entityId"]
     }
 
-    const [tableName, f, s, field, otherField] = getNames()
+    const [tableName, field, otherField] = getNames()
 
     return {
         data: {

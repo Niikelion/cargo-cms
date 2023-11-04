@@ -1,0 +1,8 @@
+{
+  "name": "@cargo-cms/utils",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.4"
+  }
+}

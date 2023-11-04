@@ -1,0 +1,12 @@
+{
+  "name": "cargo-cms-project",
+  "version": "1.0.0",
+  "repository": "git@github.com:Niikelion/cargo-cms.git",
+  "author": "Michal Osinski <michal.osinski101@gmail.com>",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "private": true
+}

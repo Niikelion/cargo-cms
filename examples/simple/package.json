@@ -1,0 +1,13 @@
+{
+  "name": "simple",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "cross-env CARGO_DEV=true cargo-cms"
+  },
+  "dependencies": {
+    "cargo-cms": "*",
+    "cross-env": "^7.0.3"
+  }
+}

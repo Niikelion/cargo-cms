@@ -76,7 +76,7 @@ export const descendSelector = (selector: SelectorStructure, field: string): Sel
 
     if (isArray(selector)) {
         if (selector.includes(field))
-            return {}
+            return true
 
         return null
     }

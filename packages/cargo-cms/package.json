@@ -14,8 +14,8 @@
     "dev": "ts-node-esm src/index.ts"
   },
   "dependencies": {
-    "@cargo-cms/utils": "*",
     "@cargo-cms/database": "*",
+    "@cargo-cms/utils": "*",
     "better-sqlite3": "^9.0.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -29,11 +29,13 @@
     "sqlite3": "^5.1.6",
     "tedious": "^16.5.0",
     "utils": "*",
+    "yargs": "^17.7.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/express": "^4.17.19",
     "@types/node": "^20.8.6",
+    "@types/yargs": "^17.0.29",
     "cross-env": "^7.0.3",
     "genversion": "^3.1.1",
     "ts-node": "^10.9.1",

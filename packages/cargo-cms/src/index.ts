@@ -14,8 +14,6 @@ import {getEntities} from "./operations/get";
 
 const root = path.resolve(process.cwd())
 
-console.log(root)
-
 const useServer = false
 
 const main = async () => {

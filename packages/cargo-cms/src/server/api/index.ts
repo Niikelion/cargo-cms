@@ -1,6 +1,6 @@
 import {rest} from "../utils";
 import {Express} from "express";
-import * as url from "url"
+import { URL } from "url"
 import * as qs from "qs"
 import {getEntities} from "../../operations/get";
 import {DataBase} from "../../database/init";
@@ -8,7 +8,7 @@ import {SelectorStructure} from "@cargo-cms/database/schema";
 
 export const registerRestApiPaths = (app: Express, db: DataBase) => {
     app.use("/api/rest", (req, res, next) => {
-        const query = url.parse(req.url).query ?? ""
+        const query = new URL(req.url).search ?? ""
         req.query = qs.parse(query, { ignoreQueryPrefix: true, depth: 20, allowDots: true })
         next()
     })

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^9.0.0",
+    "@cargo-cms/utils": "*",
     "knex": "^3.0.1",
     "knex-schema-inspector": "^3.1.0",
     "mysql": "^2.18.1",
@@ -11,8 +11,6 @@
     "oracledb": "^6.2.0",
     "pg": "^8.11.3",
     "sqlite3": "^5.1.6",
-    "tedious": "^16.5.0",
-    "@cargo-cms/utils": "*",
     "zod": "^3.22.4"
   }
 }

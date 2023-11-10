@@ -4,7 +4,7 @@ import {JSONValue} from "@cargo-cms/utils/types";
 
 export type FieldConstraints = SchemaField["constraints"]
 
-export type SelectorStructure = string | string[] | true | { [k: string]: SelectorStructure }
+export type SelectorStructure = string | (string | { [k: string]: SelectorStructure })[] | true | { [k: string]: SelectorStructure }
 
 type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]
 

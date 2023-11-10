@@ -23,7 +23,7 @@ export const validatedDataType = <Payload extends NonNullable<FieldConstraints>,
     verifyData(data: FieldConstraints): string | null {
         const result = payloadValidator.safeParse(data)
 
-        if (result.success === false)
+        if (!result.success)
             return stringifyZodError(result.error)
 
         if (verifier)
@@ -64,8 +64,11 @@ export const descendSelector = (selector: SelectorStructure, field: string): Sel
         return null
 
     if (isString(selector)) {
+        if (selector === "**")
+            return "**"
+
         if (selector === "*")
-            return "*"
+            return true
 
         const fields = selector.split(",")
         if (fields.includes(field))
@@ -75,10 +78,20 @@ export const descendSelector = (selector: SelectorStructure, field: string): Sel
     }
 
     if (isArray(selector)) {
-        if (selector.includes(field))
-            return true
+        return selector.reduce((acc: SelectorStructure | null, element) => {
+            const result = descendSelector(element, field)
 
-        return null
+            if (result === null || acc === null)
+                return acc ?? result
+
+            if (result === "**" || acc === "**")
+                return "**"
+
+            if (acc === true)
+                return result
+
+            return acc
+        }, null)
     }
 
     const f = selector[field]

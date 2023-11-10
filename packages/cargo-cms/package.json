@@ -16,18 +16,10 @@
   "dependencies": {
     "@cargo-cms/database": "*",
     "@cargo-cms/utils": "*",
-    "better-sqlite3": "^9.0.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "knex": "^3.0.1",
     "knex-schema-inspector": "^3.1.0",
-    "mysql": "^2.18.1",
-    "mysql2": "^3.6.2",
-    "oracledb": "^6.2.0",
-    "pg": "^8.11.3",
-    "qs": "^6.11.2",
-    "sqlite3": "^5.1.6",
-    "tedious": "^16.5.0",
     "utils": "*",
     "yargs": "^17.7.2",
     "zod": "^3.22.4"

@@ -1,15 +1,17 @@
 import {z} from "zod";
 import {
     DataType,
-    FieldConstraints,
+    FieldConstraints, NestedRecord, PrimitiveType,
     Schema,
     SelectorStructure,
     Structure,
     StructureField
 } from "@cargo-cms/database/schema";
 import {stringifyZodError} from "@cargo-cms/utils/errors";
-import {isArray, isBool, isString} from "@cargo-cms/utils/filters";
+import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters";
 import {Field, Table} from "@cargo-cms/database";
+import {JSONValue} from "@cargo-cms/utils/types";
+import assert from "assert";
 
 export const getTableName = (schema: Schema) => schema.name.replace(".", "_")
 
@@ -128,4 +130,54 @@ export const generateStructure = (schema: Schema, selector: SelectorStructure): 
         },
         joins
     } satisfies Structure
+}
+
+export const unflattenStructure = (source: Record<string, PrimitiveType>): NestedRecord => {
+    const ret: NestedRecord = {}
+
+    for (const prop in source) {
+        const path = prop.split("/")
+        const end = path.pop()
+
+        assert(end !== undefined)
+
+        let root: Record<string, JSONValue> = ret
+        path.forEach(part => {
+            root[part] ??= {}
+
+            const next = root[part]
+            assert(isDefined(next))
+
+            assert(!(isNumber(next) || isString(next) || isBool(next) || isArray(next)))
+
+            root = next
+        })
+
+        root[end] = source[prop]
+    }
+
+    return ret
+}
+
+export const flattenStructure = (source: NestedRecord): Record<string, PrimitiveType> => {
+    const ret: Record<string, PrimitiveType> = {}
+
+    const extract = (source: NestedRecord, path?: string) => {
+        for (const prop in source) {
+            const v = source[prop]
+
+            const p = path !== undefined ? `${path}/${prop}` : prop
+
+            if (v === null || isString(v) || isBool(v) || isNumber(v)) {
+                ret[p] = v
+                continue
+            }
+
+            extract(v, p)
+        }
+    }
+
+    extract(source)
+
+    return ret
 }

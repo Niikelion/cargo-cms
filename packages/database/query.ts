@@ -1,41 +1,15 @@
 import assert from "assert";
 import knex from "knex"
-import {Structure, StructureField} from "./schema";
+import {Structure, StructureField, PrimitiveType, FilterType} from "./schema";
+import {unflattenStructure} from "./schema/utils";
 import {JSONValue} from "@cargo-cms/utils/types"
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
 
-type PrimitiveType = string | number | boolean | null
-
-const restructureData = (source: Record<string, PrimitiveType>): Record<string, JSONValue> => {
-    const ret: Record<string, JSONValue> = {}
-
-    for (const prop in source) {
-        const path = prop.split("/")
-        const end = path.pop()
-
-        assert(end !== undefined)
-
-        let root: Record<string, JSONValue> = ret
-        path.forEach(part => {
-            root[part] ??= {}
-
-            const next = root[part]
-            assert(isDefined(next))
-
-            assert(!(isNumber(next) || isString(next) || isBool(next) || isArray(next)))
-
-            root = next
-        })
-
-        root[end] = source[prop]
-    }
-
-    return ret
-}
-
-//TODO: add population, filtering, ordering and stuff like that
-export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, q?: knex.Knex.QueryBuilder): Promise<JSONValue[]> => {
+//TODO: ordering
+export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: { query?: knex.Knex.QueryBuilder, filter?: FilterType }): Promise<JSONValue[]> => {
     type Handler = (db: knex.Knex, id: number) => Promise<JSONValue>
+
+    const { query: q, filter } = args ?? {}
 
     const query = q ?? db(tableName)
     assert(query !== undefined)
@@ -59,7 +33,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                         return fetchByStructure(db, {
                             data: s,
                             joins: s.joins
-                        }, tableName, query)
+                        }, tableName, { query })
                     })
                     break
                 }
@@ -72,18 +46,75 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
             case "array": {
                 pushCustom((db, id) => {
                     const [tableName, query] = s.fetch(db, id)
-                    return fetchByStructure(db, s, tableName, query)
+                    return fetchByStructure(db, s, tableName, { query })
                 })
                 break
             }
-            case "custom": customs.push([path, s.handler]); break
+            case "custom": pushCustom(s.handler); break
         }
     }
 
     extractData("", structure.data)
 
-    query.select(`${tableName}._id`)
+    if (filter !== undefined) {
+        type CF = (q: knex.Knex.QueryBuilder) => void
+        type Q = knex.Knex.QueryBuilder
+        const applyFilters = (filter: FilterType, query: Q) => {
+            for (const prop in filter) {
+                const v = filter[prop]
 
+                if (isArray(v)) {
+                    const combiners: Record<string, (f: CF) => void> = {
+                        "#and": (f: CF) => query.andWhere(f),
+                        "#or": (f: CF) => query.orWhere(f)
+                    }
+
+                    if (!Object.keys(combiners).includes(prop))
+                        continue
+
+                    v.forEach((v, i) => {
+                        const innerFilter = (q: Q) => applyFilters(v, q)
+
+                        if (i === 0) {
+                            query.where(innerFilter);
+                            return
+                        }
+
+                        combiners[prop](innerFilter)
+                    })
+
+                    continue
+                }
+
+                for (const op in v) {
+                    const val = v[op]
+
+                    const p = fields.find(f => f[0] === prop)
+                    if (p === undefined)
+                        continue
+
+                    const comparers: Record<string, (q: Q) => void> = {
+                        "#eq": (q: Q) => val === null ? q.whereNull(p[1]) : q.where(p[1], "=", val),
+                        "#neq": (q: Q) => q.where(p[1], "<>", val),
+                        "#lt": (q: Q) => q.where(p[1], "<", val),
+                        "#lte": (q: Q) => q.where(p[1], "<=", val),
+                        "#gt": (q: Q) => q.where(p[1], ">", val),
+                        "#ge": (q: Q) => q.where(p[1], ">=", val)
+                        //TODO: add more checks
+                    }
+
+                    if (!Object.keys(comparers).includes(op))
+                        continue
+
+                    comparers[op](query)
+                }
+            }
+        }
+
+        applyFilters(filter, query)
+    }
+
+    query.select(`${tableName}._id`)
     joins.forEach(([_, join]) => join(query))
     fields.forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
 
@@ -92,7 +123,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
     const results: (Record<string, PrimitiveType> & {_id: number})[] = await query.then()
 
     return await Promise.all(results.map(async result => {
-        let ret = restructureData(result)
+        let ret: JSONValue = unflattenStructure(result)
 
         const id = result._id
 

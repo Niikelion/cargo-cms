@@ -50,7 +50,9 @@ const main = async () => {
             console.log("Running backend server")
             await runServer(3000, db)
         } else {
-            const res = await getEntities(db, "restaurant", ["*", { reviews: "*" }])
+            const res = await getEntities(db, "restaurant", ["*", { reviews: "*" }], {
+                filter: { "name": { "#eq": "Test" } }
+            })
             console.dir(res, {depth: 10})
         }
 

@@ -6,6 +6,11 @@ export type FieldConstraints = SchemaField["constraints"]
 
 export type SelectorStructure = string | (string | { [k: string]: SelectorStructure })[] | true | { [k: string]: SelectorStructure }
 
+export type PrimitiveType = string | number | boolean | null
+export type NestedRecord = { [k: string]: NestedRecord | PrimitiveType }
+
+export type FilterType = { [k: string]: FilterType[] | { [k: string]: PrimitiveType } }
+
 type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]
 
 export type StructureField = {

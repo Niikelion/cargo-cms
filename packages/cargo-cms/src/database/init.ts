@@ -1,7 +1,7 @@
 import knex from "knex"
 import * as fs from "fs/promises";
 import * as path from "path";
-import {Schema, SelectorStructure} from "@cargo-cms/database/schema";
+import {FilterType, Schema, SelectorStructure} from "@cargo-cms/database/schema";
 import {fetchByStructure} from "@cargo-cms/database/query"
 import {constructTable, constructTables} from "./table";
 import {isBool, isNumber} from "@cargo-cms/utils/filters";
@@ -46,7 +46,7 @@ export type DataBase = {
     raw: knex.Knex
     constructTables: (schemas: Schema[]) => Promise<void>
     constructTable: (schema: Schema) => Promise<void>
-    query: (schema: Schema, selector: SelectorStructure) => Promise<JSONValue[]>
+    query: (schema: Schema, selector: SelectorStructure, args?: { filter?: FilterType }) => Promise<JSONValue[]>
     finish: () => Promise<void>
 }
 
@@ -63,8 +63,8 @@ export const createDatabase = async (configPath: string) => {
         async constructTable(schema: Schema) {
             await constructTable(db, schema)
         },
-        async query(schema: Schema, selector: SelectorStructure) {
-            return await fetchByStructure(db, generateStructure(schema, selector), getTableName(schema))
+        async query(schema: Schema, selector: SelectorStructure, args) {
+            return await fetchByStructure(db, generateStructure(schema, selector), getTableName(schema), args)
         },
         async finish() {
             await db.destroy()

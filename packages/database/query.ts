@@ -59,7 +59,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
 
     extractData("", structure.data)
 
-    query.select(`${tableName}._id`)
+    query.select(db.raw("?? as ??", [`${tableName}._id`, 'id']))
     joins.forEach(([_, join]) => join(query))
     Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
 
@@ -99,14 +99,16 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                     const p = fields[prop]
                     if (p === undefined)
                         continue
-                    //TODO: add eq for null
+
                     const comparers: Record<string, (q: Q) => void> = {
-                        "#eq": (q: Q) => val === null ? q.whereNull(p[1]) : q.where(p[1], "=", val),
-                        "#neq": (q: Q) => q.where(p[1], "<>", val),
-                        "#lt": (q: Q) => q.where(p[1], "<", val),
-                        "#lte": (q: Q) => q.where(p[1], "<=", val),
-                        "#gt": (q: Q) => q.where(p[1], ">", val),
-                        "#ge": (q: Q) => q.where(p[1], ">=", val)
+                        "#eq": (q: Q) => q.where(p, "=", val),
+                        "#neq": (q: Q) => q.where(p, "<>", val),
+                        "#null": (q: Q) => q.whereNull(p),
+                        "#nnull": (q: Q) => q.whereNotNull(p),
+                        "#lt": (q: Q) => q.where(p, "<", val),
+                        "#lte": (q: Q) => q.where(p, "<=", val),
+                        "#gt": (q: Q) => q.where(p, ">", val),
+                        "#ge": (q: Q) => q.where(p, ">=", val)
                         //TODO: add more checks
                     }
 
@@ -130,7 +132,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                 return undefined
 
             return {
-                column: p[1],
+                column: p,
                 order: (desc ?? false) ? "desc" : "asc",
                 nulls: "last"
             }
@@ -139,12 +141,12 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
 
     console.log(query.toSQL().sql)
 
-    const results: (Record<string, PrimitiveType> & {_id: number})[] = await query.then()
+    const results: (Record<string, PrimitiveType> & {id: number})[] = await query.then()
 
     return await Promise.all(results.map(async result => {
         let ret: JSONValue = unflattenStructure(result)
 
-        const id = result._id
+        const { id } = result
 
         for (const [path, handler] of customs) {
             const tree = await handler(db, id)

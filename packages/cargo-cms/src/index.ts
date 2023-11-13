@@ -51,7 +51,8 @@ const main = async () => {
             await runServer(3000, db)
         } else {
             const res = await getEntities(db, "restaurant", ["*", { reviews: "*" }], {
-                filter: { "name": { "#eq": "Test" } }
+                filter: { "name": { "#eq": "Test" } },
+                order: [ "name" ]
             })
             console.dir(res, {depth: 10})
         }

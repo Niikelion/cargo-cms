@@ -1,15 +1,18 @@
 import assert from "assert";
 import knex from "knex"
-import {Structure, StructureField, PrimitiveType, FilterType} from "./schema";
+import {Structure, StructureField, PrimitiveType, FilterType, OrderType} from "./schema";
 import {unflattenStructure} from "./schema/utils";
 import {JSONValue} from "@cargo-cms/utils/types"
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
 
-//TODO: ordering
-export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: { query?: knex.Knex.QueryBuilder, filter?: FilterType }): Promise<JSONValue[]> => {
+export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: {
+    query?: knex.Knex.QueryBuilder,
+    filter?: FilterType,
+    order?: OrderType[]
+}): Promise<JSONValue[]> => {
     type Handler = (db: knex.Knex, id: number) => Promise<JSONValue>
 
-    const { query: q, filter } = args ?? {}
+    const { query: q, filter, order } = args ?? {}
 
     const query = q ?? db(tableName)
     assert(query !== undefined)
@@ -56,6 +59,11 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
 
     extractData("", structure.data)
 
+    query.select(`${tableName}._id`)
+    joins.forEach(([_, join]) => join(query))
+    fields.forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
+
+    //TODO: optimise field access
     if (filter !== undefined) {
         type CF = (q: knex.Knex.QueryBuilder) => void
         type Q = knex.Knex.QueryBuilder
@@ -92,7 +100,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                     const p = fields.find(f => f[0] === prop)
                     if (p === undefined)
                         continue
-
+                    //TODO: add eq for null
                     const comparers: Record<string, (q: Q) => void> = {
                         "#eq": (q: Q) => val === null ? q.whereNull(p[1]) : q.where(p[1], "=", val),
                         "#neq": (q: Q) => q.where(p[1], "<>", val),
@@ -113,10 +121,22 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
 
         applyFilters(filter, query)
     }
+    if (order !== undefined) {
+        query.orderBy(order.map((o: OrderType) => {
+            const { field, desc } = isString(o) ? { field: o, desc: undefined } : o
 
-    query.select(`${tableName}._id`)
-    joins.forEach(([_, join]) => join(query))
-    fields.forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
+            const p = fields.find(f => f[0] === field)
+
+            if (p === undefined)
+                return undefined
+
+            return {
+                column: p[1],
+                order: (desc ?? false) ? "desc" : "asc",
+                nulls: "last"
+            }
+        }).filter(isDefined))
+    }
 
     console.log(query.toSQL().sql)
 

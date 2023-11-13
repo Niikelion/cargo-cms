@@ -1,7 +1,7 @@
 import {rest} from "../utils";
 import {Express} from "express";
 import { URL } from "url"
-import * as qs from "qs"
+import qs from "qs";
 import {getEntities} from "../../operations/get";
 import {DataBase} from "../../database/init";
 import {SelectorStructure} from "@cargo-cms/database/schema";

@@ -5,14 +5,17 @@ import {unFlattenStructure} from "./schema/utils";
 import {JSONValue} from "@cargo-cms/utils/types"
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
 
-export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: {
+export type FetchByStructureAdditionalArgs = {
     query?: knex.Knex.QueryBuilder,
     filter?: FilterType,
-    order?: OrderType[]
-}): Promise<JSONValue[]> => {
+    order?: OrderType[],
+    limit?: number
+}
+
+export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: FetchByStructureAdditionalArgs): Promise<JSONValue[]> => {
     type Handler = (db: knex.Knex, id: number) => Promise<JSONValue>
 
-    const { query: q, filter, order } = args ?? {}
+    const { query: q, filter, order, limit } = args ?? {}
 
     const query = q ?? db(tableName)
     assert(query !== undefined)
@@ -63,6 +66,9 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
     joins.forEach(([_, join]) => join(query))
     Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
 
+    if (limit !== undefined) {
+        query.limit(limit)
+    }
     if (filter !== undefined) {
         type CF = (q: knex.Knex.QueryBuilder) => void
         type Q = knex.Knex.QueryBuilder

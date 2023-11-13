@@ -1,8 +1,8 @@
 import knex from "knex"
 import * as fs from "fs/promises";
 import * as path from "path";
-import {FilterType, OrderType, Schema, SelectorStructure} from "@cargo-cms/database/schema";
-import {fetchByStructure} from "@cargo-cms/database/query"
+import {Schema, SelectorStructure} from "@cargo-cms/database/schema";
+import {fetchByStructure, FetchByStructureAdditionalArgs} from "@cargo-cms/database/query"
 import {constructTable, constructTables} from "./table";
 import {isBool, isNumber} from "@cargo-cms/utils/filters";
 import {JSONValue} from "@cargo-cms/utils/types";
@@ -46,10 +46,7 @@ export type DataBase = {
     raw: knex.Knex
     constructTables: (schemas: Schema[]) => Promise<void>
     constructTable: (schema: Schema) => Promise<void>
-    query: (schema: Schema, selector: SelectorStructure, args?: {
-        filter?: FilterType,
-        order?: OrderType[]
-    }) => Promise<JSONValue[]>
+    query: (schema: Schema, selector: SelectorStructure, args?: Omit<FetchByStructureAdditionalArgs, "query">) => Promise<JSONValue[]>
     finish: () => Promise<void>
 }
 

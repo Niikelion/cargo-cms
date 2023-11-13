@@ -17,7 +17,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
     const query = q ?? db(tableName)
     assert(query !== undefined)
 
-    const fields: [string, string][] = []
+    const fields: Record<string, string> = {}
     const joins: [string, Structure["joins"][string]][] = []
     const customs: [string, Handler][] = []
 
@@ -27,7 +27,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
         const pushCustom = (handler: Handler) => customs.push([path, handler])
 
         switch (s.type) {
-            case "string": case "number": case "boolean": fields.push([path, s.id]); break
+            case "string": case "number": case "boolean": fields[path] = s.id; break
             case "object": {
                 if (s.fetch !== undefined) {
                     pushCustom((db, id) => {
@@ -61,9 +61,8 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
 
     query.select(`${tableName}._id`)
     joins.forEach(([_, join]) => join(query))
-    fields.forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
+    Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
 
-    //TODO: optimise field access
     if (filter !== undefined) {
         type CF = (q: knex.Knex.QueryBuilder) => void
         type Q = knex.Knex.QueryBuilder
@@ -97,7 +96,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                 for (const op in v) {
                     const val = v[op]
 
-                    const p = fields.find(f => f[0] === prop)
+                    const p = fields[prop]
                     if (p === undefined)
                         continue
                     //TODO: add eq for null
@@ -125,7 +124,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
         query.orderBy(order.map((o: OrderType) => {
             const { field, desc } = isString(o) ? { field: o, desc: undefined } : o
 
-            const p = fields.find(f => f[0] === field)
+            const p = fields[field]
 
             if (p === undefined)
                 return undefined

@@ -1,7 +1,7 @@
 import assert from "assert";
 import knex from "knex"
 import {Structure, StructureField, PrimitiveType, FilterType, OrderType} from "./schema";
-import {unflattenStructure} from "./schema/utils";
+import {unFlattenStructure} from "./schema/utils";
 import {JSONValue} from "@cargo-cms/utils/types"
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
 
@@ -147,7 +147,7 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
     const results: (Record<string, PrimitiveType> & {id: number})[] = await query.then()
 
     return await Promise.all(results.map(async result => {
-        let ret: JSONValue = unflattenStructure(result)
+        let ret: JSONValue = unFlattenStructure(result)
 
         const { id } = result
 

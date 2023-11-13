@@ -10,7 +10,7 @@ const stringDataPayload = fieldConstraintsSchema.extend({
     regex: z.string().optional()
 })
 
-const addStringChecks = (field: TextField, name: string, data: z.infer<typeof stringDataPayload>) => {
+const addStringChecks = (field: TextField, data: z.infer<typeof stringDataPayload>) => {
     if (isDefined(data.max))
         field.length("le", data.max)
 
@@ -22,10 +22,10 @@ const addStringChecks = (field: TextField, name: string, data: z.infer<typeof st
 }
 
 const shortTextDataType = singleFieldDataType("shortText", "string", stringDataPayload, (table, name, data) =>
-    table.string(name, c => addStringChecks(c, name, data)).fields[name])
+    table.string(name, c => addStringChecks(c, data)).fields[name])
 
 const longTextDataType = singleFieldDataType("longText", "string", stringDataPayload, (table, name, data) =>
-    table.text(name, c => addStringChecks(c, name, data)).fields[name])
+    table.text(name, c => addStringChecks(c, data)).fields[name])
 
 const numberDataPayload = fieldConstraintsSchema.extend({
     max: z.number().optional(),

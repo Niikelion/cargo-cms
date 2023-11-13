@@ -5,7 +5,7 @@ import {
     Schema,
     SelectorStructure,
     Structure,
-    StructureField
+    StructureField, StructureGeneratorArgs
 } from "@cargo-cms/database/schema";
 import {stringifyZodError} from "@cargo-cms/utils/errors";
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters";
@@ -17,8 +17,8 @@ export const getTableName = (schema: Schema) => schema.name.replace(".", "_")
 
 export const validatedDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string, payloadValidator: z.ZodType<Payload, PayloadDef>,
-    generateColumns: (table: Table<never>, name: string, data: Payload) => Table<string>[] | null,
-    generateStructure: (table: string, name: string, data: Payload, selector: SelectorStructure) => Structure,
+    generateColumns: (table: Table<never>, path: string, data: Payload) => Table<string>[] | null,
+    generateStructure: (args: Omit<StructureGeneratorArgs, "data"> & { data: Payload }) => Structure,
     verifier?: (data: Payload) => string | null
 ) => ({
     name,
@@ -33,11 +33,13 @@ export const validatedDataType = <Payload extends NonNullable<FieldConstraints>,
 
         return null
     },
-    generateColumns(table, name, data) {
-        return generateColumns(table, name.replace(".", "_"), data as Payload)
+    generateColumns(table, path, data) {
+        return generateColumns(table, path.replace(".", "_"), data as Payload)
     },
-    generateStructure(table, name, data, selector) {
-        return generateStructure(table, name.replace(".", "_"), data as Payload, selector)
+    generateStructure(args) {
+        const { data, path, ...rest} = args
+
+        return generateStructure({...rest, data: data as Payload, path: path.replace(".", "_")})
     }
 } satisfies DataType)
 
@@ -48,8 +50,8 @@ export const singleFieldDataType = <Payload extends NonNullable<FieldConstraints
     builder: (table: Table<never>, name: string, data: Payload) => Field,
     validator?: (data: Payload) => string | null
 ) =>
-    validatedDataType(name, payloadValidator, (table, name, data) => {
-        const field = builder(table, name, data as Payload)
+    validatedDataType(name, payloadValidator, (table, path, data) => {
+        const field = builder(table, path, data as Payload)
 
         if (data.unique)
             field.unique()
@@ -57,8 +59,8 @@ export const singleFieldDataType = <Payload extends NonNullable<FieldConstraints
         field.nullable(!(data.required ?? false))
 
         return null
-    }, (table, name): Structure => ({
-        data: {type, id: `${table}.${name}`}, joins: {}
+    }, ({table, path}): Structure => ({
+        data: {type, id: `${table}.${path}`}, joins: {}
     }), validator)
 
 export const descendSelector = (selector: SelectorStructure, field: string): SelectorStructure | null => {
@@ -104,11 +106,23 @@ export const descendSelector = (selector: SelectorStructure, field: string): Sel
     return f
 }
 
-export const generateStructure = (schema: Schema, selector: SelectorStructure): Structure => {
+const makeUuidGenerator = () => {
+    let i = 0;
+    return () => `t${++i}`
+}
+
+export const generateStructure = (schema: Schema, selector: SelectorStructure, args?: {
+    uuidGenerator?: () => string
+    tableName?: string
+}): Structure => {
     const fields: Record<string, StructureField> = {}
     const joins: Structure["joins"] = {}
 
-    const table = getTableName(schema)
+    args ??= {}
+
+    const table = args.tableName ?? getTableName(schema)
+
+    const uuidGenerator = args.uuidGenerator ?? makeUuidGenerator()
 
     schema.fields.forEach(field => {
         const fieldSelector = descendSelector(selector, field.name)
@@ -116,7 +130,14 @@ export const generateStructure = (schema: Schema, selector: SelectorStructure): 
         if (fieldSelector === null)
             return
 
-        const structure = field.type.generateStructure(table, field.name, field.constraints, fieldSelector)
+        const structure = field.type.generateStructure({
+            table,
+            path: field.name,
+            data: field.constraints,
+            selector: fieldSelector,
+            usedTypes: new Set<string>(),
+            uuidGenerator
+        })
 
         fields[field.name] = structure.data
         for (const join in structure.joins)
@@ -132,7 +153,7 @@ export const generateStructure = (schema: Schema, selector: SelectorStructure): 
     } satisfies Structure
 }
 
-export const unflattenStructure = (source: Record<string, PrimitiveType>): NestedRecord => {
+export const unFlattenStructure = (source: Record<string, PrimitiveType>): NestedRecord => {
     const ret: NestedRecord = {}
 
     for (const prop in source) {

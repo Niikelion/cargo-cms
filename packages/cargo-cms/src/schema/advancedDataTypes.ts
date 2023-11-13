@@ -35,8 +35,8 @@ const componentDataType = validatedDataType("component", componentDataPayload, (
     const tables = type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints)).filter(isDefined).flat()
 
     return [newTable, ...tables]
-}, (table, name, data, selector) => {
-     const c = nameGenerator(name)
+}, ({table, path, data, selector, ...args}) => {
+     const c = nameGenerator(path)
 
     const type = getComponentType(data.type)
     if (type == null)
@@ -47,7 +47,7 @@ const componentDataType = validatedDataType("component", componentDataPayload, (
     const fields: Record<string, StructureField> = {}
     const joins: Structure["joins"] = {}
 
-    const tableName = isList ? `${table}__${name}` : table
+    const tableName = isList ? `${table}__${path}` : table
     const newTable = isList ? tableName : table
 
     const subStructures = type.fields.map(field => {
@@ -57,7 +57,13 @@ const componentDataType = validatedDataType("component", componentDataPayload, (
 
         return ({
             field,
-            structure: field.type.generateStructure(newTable, isList ? field.name : c`${field.name}`, field.constraints, fieldSelector)
+            structure: field.type.generateStructure({
+                ...args,
+                table: newTable,
+                path: isList ? field.name : c`${field.name}`,
+                data: field.constraints,
+                selector: fieldSelector
+            })
         });
     }).filter(isDefined)
     subStructures.forEach(structure => {
@@ -113,7 +119,9 @@ const relationDataPayload = fieldConstraintsSchema.extend({
     field: z.string().optional()
 })
 
-const relationDataType = validatedDataType("relation", relationDataPayload, (table, name, data) => {
+const relationDataTypeName = "relation"
+
+const relationDataType = validatedDataType(relationDataTypeName, relationDataPayload, (table, name, data) => {
     const type = getEntityType(data.type)
 
     assert(type !== null)
@@ -164,7 +172,18 @@ const relationDataType = validatedDataType("relation", relationDataPayload, (tab
     } as const satisfies Record<Relation, () => Table<string>[] | null>
 
     return relationHandlers[relation]()
-}, (table, name, data, selector) => {
+}, (args) => {
+    const {
+        table,
+        path,
+        data,
+        selector,
+        uuidGenerator
+    } = args
+
+    if (selector === "**")
+        return { data: { type: "object", fields: {} }, joins: {} }
+
     const type = getEntityType(data.type)
 
     assert(type !== null)
@@ -172,21 +191,28 @@ const relationDataType = validatedDataType("relation", relationDataPayload, (tab
     const relation = data.relation
 
     const otherTableName = getTableName(type)
+    const otherTableAlias = uuidGenerator()
 
-    const structure = generateStructure(type, selector)
+    const isSimpleRelation = relation === "one" || relation === "oneToOne" || relation === "manyToOne"
 
-    if (relation === "one" || relation === "oneToOne" || relation === "manyToOne") {
+    const structure = generateStructure(type, selector, { uuidGenerator, tableName: isSimpleRelation ? otherTableAlias : undefined })
+
+    if (isSimpleRelation) {
         return {
             data: structure.data,
             joins: {
-                [otherTableName]: query => query.leftJoin(otherTableName, `${table}.${name}`, `${otherTableName}._id`),
+                [otherTableName]: query =>
+                    query.leftJoin(
+                        `${otherTableName} AS ${otherTableAlias}`,
+                        `${table}.${path}`,
+                        `${otherTableAlias}._id`),
                 ...structure.joins
             }
         } satisfies Structure
     }
 
     if (relation === "many") {
-        const linkTable = `${table}__${name}`
+        const linkTable = `${table}__${path}`
 
         return {
             data: {
@@ -213,7 +239,7 @@ const relationDataType = validatedDataType("relation", relationDataPayload, (tab
         }
     }
 
-    const t1 = `${table}__${name}`
+    const t1 = `${table}__${path}`
     const t2 =  `${otherTableName}__${otherName}`
 
     const getNames = () => {
@@ -287,7 +313,8 @@ const dynamicComponentDataType = validatedDataType("dynamicComponent", dynamicCo
     tables.push(newTable)
 
     return tables
-}, (table, name, data) => {
+}, ({}) => {
+    //TODO: implement
     throw new Error("dynamic components not implemented")
 }, data => {
     const types = data.types.map(type => [type, getEntityType(type)])

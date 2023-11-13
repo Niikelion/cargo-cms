@@ -38,12 +38,20 @@ export type Structure = {
     joins: Record<string, (builder: knex.Knex.QueryBuilder) => void>
 }
 
+export type StructureGeneratorArgs = {
+    table: string,
+    path: string,
+    data: FieldConstraints,
+    selector: SelectorStructure,
+    usedTypes: Set<string>,
+    uuidGenerator: () => string
+}
+
 export type DataType = {
     readonly name: string
+    //TODO: add depth limit to the field generation
     generateColumns: (table: Table<never>, path: string, data: FieldConstraints) => Table<string>[] | null,
-    //TODO: maybe pass some uuid generator along the way for unique join aliases in case of multiple joins to the same table in one query
-    //TODO: maybe include some blacklist of types to allow downstream generators to avoid infinite looping?
-    generateStructure: (table: string, path: string, data: FieldConstraints, selector: SelectorStructure) => Structure
+    generateStructure: (ags: StructureGeneratorArgs) => Structure
     verifyData: (data: FieldConstraints) => string | null
 }
 

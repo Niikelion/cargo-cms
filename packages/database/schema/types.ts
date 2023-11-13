@@ -9,7 +9,7 @@ export type SelectorStructure = string | (string | { [k: string]: SelectorStruct
 export type PrimitiveType = string | number | boolean | null
 export type NestedRecord = { [k: string]: NestedRecord | PrimitiveType }
 
-export type FilterType = { [k: string]: FilterType[] | { [k: string]: PrimitiveType } }
+export type FilterType = { [k: string]: FilterType[] | { [k: string]: PrimitiveType | [number, number] | string[] } }
 export type OrderType = { field: string, desc?: boolean } | string
 
 type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]

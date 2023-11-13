@@ -73,7 +73,8 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                 if (isArray(v)) {
                     const combiners: Record<string, (f: CF) => void> = {
                         "#and": (f: CF) => query.andWhere(f),
-                        "#or": (f: CF) => query.orWhere(f)
+                        "#or": (f: CF) => query.orWhere(f),
+                        "#not": (f: CF) => query.whereNot(f)
                     }
 
                     if (!Object.keys(combiners).includes(prop))
@@ -104,12 +105,14 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
                         "#eq": (q: Q) => q.where(p, "=", val),
                         "#neq": (q: Q) => q.where(p, "<>", val),
                         "#null": (q: Q) => q.whereNull(p),
-                        "#nnull": (q: Q) => q.whereNotNull(p),
+                        "#notNull": (q: Q) => q.whereNotNull(p),
                         "#lt": (q: Q) => q.where(p, "<", val),
                         "#lte": (q: Q) => q.where(p, "<=", val),
                         "#gt": (q: Q) => q.where(p, ">", val),
-                        "#ge": (q: Q) => q.where(p, ">=", val)
-                        //TODO: add more checks
+                        "#ge": (q: Q) => q.where(p, ">=", val),
+                        "#like": (q: Q) => q.whereLike(p, val),
+                        "#in": (q: Q) => q.whereIn([p], [val as string[]]),
+                        "#between": (q: Q) => q.whereBetween(p, val as [number, number])
                     }
 
                     if (!Object.keys(comparers).includes(op))

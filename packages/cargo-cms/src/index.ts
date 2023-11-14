@@ -1,36 +1,45 @@
-import {readSchema} from "./schema/reader";
-import {
-    ComponentType,
-    schemaFromJson,
-    EntityType,
-    getAllEntityTypes,
-    registerComponentType,
-    registerEntityType
-} from "./schema";
-import {createDatabase} from "./database/init";
+import {readSchema} from "../modules/schema-loader/reader";
 import * as path from "path";
-import {runServer} from "./server";
-import {getEntities} from "./operations/get";
+import httpServerModule from "../modules/http-server";
+import {modules, Module} from "@cargo-cms/module-core";
+import typeRegistry, {ComponentType, EntityType} from "../modules/type-registry";
+import common from "../modules/common";
+import schemaLoader from "../modules/schema-loader";
+import queries from "../modules/queries";
+import databaseModule from "../modules/database";
 
 const root = path.resolve(process.cwd())
 
 const useServer = false
 
+const builtInModules: Module[] = [
+    typeRegistry,
+    common,
+    schemaLoader,
+    queries,
+    httpServerModule,
+    databaseModule
+]
+
 const main = async () => {
+    console.log("Loading modules")
+    builtInModules.forEach(modules.register)
+    await modules.init()
+
     console.log("Loading schemas")
     const schemaFiles = await readSchema(path.resolve(root, `src/schema`))
 
     console.log("Constructing internal representation")
-    const schemas = schemaFiles.map(schemaFromJson)
+    const schemas = schemaFiles.map(schemaLoader.fromJson)
 
     schemas.forEach(schema => {
         switch (schema.type) {
             case "component": {
-                registerComponentType(schema as ComponentType)
+                typeRegistry.registerComponentType(schema as ComponentType)
                 break
             }
             case "entity": {
-                registerEntityType(schema as EntityType)
+                typeRegistry.registerEntityType(schema as EntityType)
                 break
             }
             default: break
@@ -39,26 +48,30 @@ const main = async () => {
     console.log("Done")
 
     console.log("Initializing database")
-    const db = await createDatabase(path.resolve(root, `src/database.js`))
+    await databaseModule.setup(path.resolve(root, `src/database.js`))
 
     try {
         console.log("Constructing tables")
-        await db.constructTables(getAllEntityTypes())
+        await databaseModule.constructTables(typeRegistry.getAllEntityTypes())
         console.log("Done")
 
         if (useServer) {
             console.log("Running backend server")
-            await runServer(3000, db)
+            await httpServerModule.start(3000)
         } else {
-            const res = await getEntities(db, "restaurant", ["*", { reviews: "*" }], {
+            const res = await queries.get("restaurant", ["*", { reviews: "*" }], {
                 filter: { "name": { "#eq": "Test" } },
-                order: [ "name" ]
+                sort: [ "name" ]
             })
             console.dir(res, {depth: 10})
         }
 
     } finally {
-        await db.finish()
+        console.log("Unloading modules")
+        await modules.cleanup()
+
+        console.log("Closing database")
+        await databaseModule.finish()
     }
 }
 

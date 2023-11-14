@@ -10,8 +10,8 @@ export class RestApiError extends Error {
     }
 }
 
-export const rest = (restFunction: RestFunction) =>
-    (req: express.Request, res: express.Response) =>
+export const rest = <Req extends object = Record<string, string>>(restFunction: RestFunction<Req>) =>
+    (req: express.Request<Req>, res: express.Response) =>
         restFunction(req, res).then(value => res.json(value)).catch(err => {
             if (err instanceof RestApiError)
                 res.status(err.code)

@@ -1,6 +1,6 @@
 import assert from "assert";
 import knex from "knex"
-import {Structure, StructureField, PrimitiveType, FilterType, OrderType} from "./schema";
+import {Structure, StructureField, PrimitiveType, FilterType, SortType} from "./schema";
 import {unFlattenStructure} from "./schema/utils";
 import {JSONValue} from "@cargo-cms/utils/types"
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
@@ -8,14 +8,14 @@ import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/f
 export type FetchByStructureAdditionalArgs = {
     query?: knex.Knex.QueryBuilder,
     filter?: FilterType,
-    order?: OrderType[],
+    sort?: SortType[],
     limit?: number
 }
 
 export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: FetchByStructureAdditionalArgs): Promise<JSONValue[]> => {
     type Handler = (db: knex.Knex, id: number) => Promise<JSONValue>
 
-    const { query: q, filter, order, limit } = args ?? {}
+    const { query: q, filter, sort, limit } = args ?? {}
 
     const query = q ?? db(tableName)
     assert(query !== undefined)
@@ -131,8 +131,8 @@ export const fetchByStructure = async (db: knex.Knex, structure: Structure, tabl
 
         applyFilters(filter, query)
     }
-    if (order !== undefined) {
-        query.orderBy(order.map((o: OrderType) => {
+    if (sort !== undefined) {
+        query.orderBy(sort.map((o: SortType) => {
             const { field, desc } = isString(o) ? { field: o, desc: undefined } : o
 
             const p = fields[field]

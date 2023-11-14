@@ -1,5 +1,5 @@
 import {rest} from "./utils";
-import {version} from "../version";
+import {version} from "../../src/version";
 import express from "express";
 
 export const registerInfoPath = (app: express.Express) => {

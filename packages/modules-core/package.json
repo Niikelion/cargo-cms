@@ -1,5 +1,5 @@
 {
-  "name": "@cargo-cms/module-core",
+  "name": "@cargo-cms/modules-core",
   "version": "1.0.0",
   "license": "MIT",
   "dependencies": {}

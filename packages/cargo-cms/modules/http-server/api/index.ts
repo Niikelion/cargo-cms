@@ -5,7 +5,7 @@ import qs from "qs";
 import {FilterType, SortType, SelectorStructure} from "@cargo-cms/database/schema";
 import {JSONValue} from "@cargo-cms/utils/types";
 import * as z from "zod"
-import {ModuleContext} from "@cargo-cms/module-core";
+import {ModuleContext} from "@cargo-cms/modules-core";
 import {QueriesModule} from "../../queries";
 
 const selectorType: z.ZodType<SelectorStructure> = z.union([

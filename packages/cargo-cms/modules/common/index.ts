@@ -1,4 +1,4 @@
-import {makeModule} from "@cargo-cms/module-core";
+import {makeModule} from "@cargo-cms/modules-core";
 import {TypeRegistryModule} from "../type-registry";
 import {registerBasicDataTypes} from "./basicDataTypes";
 import {registerAdvancedDataTypes} from "./advancedDataTypes";

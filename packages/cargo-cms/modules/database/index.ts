@@ -1,4 +1,4 @@
-import {makeModule, ModuleContext} from "@cargo-cms/module-core";
+import {makeModule} from "@cargo-cms/modules-core";
 import knex from "knex"
 import {Schema, SelectorStructure} from "@cargo-cms/database/schema";
 import {fetchByStructure, FetchByStructureAdditionalArgs} from "@cargo-cms/database/query"

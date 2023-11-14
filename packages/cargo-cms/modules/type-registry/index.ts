@@ -1,4 +1,4 @@
-import {makeModule} from "@cargo-cms/module-core";
+import {makeModule} from "@cargo-cms/modules-core";
 import {DataType, Schema} from "@cargo-cms/database/schema";
 
 const supportedTypes: Record<string, DataType> = {}

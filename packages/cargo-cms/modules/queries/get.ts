@@ -3,7 +3,7 @@ import {RestApiError} from "../http-server/utils";
 import {SelectorStructure} from "@cargo-cms/database/schema";
 import {FetchByStructureAdditionalArgs} from "@cargo-cms/database/query";
 import {TypeRegistryModule} from "../type-registry";
-import {ModuleContext} from "@cargo-cms/module-core";
+import {ModuleContext} from "@cargo-cms/modules-core";
 import {DatabaseModule} from "../database";
 
 export const makeGet = async (ctx: ModuleContext) => {

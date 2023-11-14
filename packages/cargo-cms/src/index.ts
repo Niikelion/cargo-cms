@@ -1,7 +1,7 @@
 import {readSchema} from "../modules/schema-loader/reader";
 import * as path from "path";
 import httpServerModule from "../modules/http-server";
-import {modules, Module} from "@cargo-cms/module-core";
+import {modules, Module} from "@cargo-cms/modules-core";
 import typeRegistry, {ComponentType, EntityType} from "../modules/type-registry";
 import common from "../modules/common";
 import schemaLoader from "../modules/schema-loader";

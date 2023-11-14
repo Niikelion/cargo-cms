@@ -1,5 +1,4 @@
-import {makeModule} from "@cargo-cms/module-core";
-import {TypeRegistryModule} from "../type-registry";
+import {makeModule} from "@cargo-cms/modules-core";
 import {makeGet} from "./get";
 
 const err = () => {

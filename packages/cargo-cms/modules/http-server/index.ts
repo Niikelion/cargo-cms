@@ -1,8 +1,7 @@
 import express from 'express'
 import {registerInfoPath} from "./info";
 import {registerRestApiPaths} from "./api";
-import {makeModule, ModuleContext} from "@cargo-cms/module-core";
-import {DatabaseModule} from "../database";
+import {makeModule, ModuleContext} from "@cargo-cms/modules-core";
 
 const app = express()
 
@@ -13,8 +12,6 @@ const data = {
     start: async (port: number) => {
         if (context === null)
             throw new Error("Http server not initialized")
-
-        const database = await context.require<DatabaseModule>("database")
 
         //TODO: proper welcome page in production, api explorer in development, nothing if disabled by config
         app.get("/", (_, res) => res.send("Running"))

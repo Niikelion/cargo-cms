@@ -7,10 +7,11 @@ import common from "../modules/common";
 import schemaLoader from "../modules/schema-loader";
 import queries from "../modules/queries";
 import databaseModule from "../modules/database";
+import restApiModule from "../modules/rest-api";
 
 const root = path.resolve(process.cwd())
 
-const useServer = false
+const useServer = true
 
 const builtInModules: Module[] = [
     typeRegistry,
@@ -18,7 +19,8 @@ const builtInModules: Module[] = [
     schemaLoader,
     queries,
     httpServerModule,
-    databaseModule
+    databaseModule,
+    restApiModule
 ]
 
 const main = async () => {
@@ -58,6 +60,16 @@ const main = async () => {
         if (useServer) {
             console.log("Running backend server")
             await httpServerModule.start(3000)
+
+            await new Promise<void>(resolve => {
+                process.stdin.resume()
+                const end = () => resolve()
+
+                process.on('exit', end)
+                process.on('SIGINT', end)
+                process.on('SIGKILL', end)
+            })
+            await httpServerModule.stop()
         } else {
             const res = await queries.get("restaurant", ["*", { reviews: "*" }], {
                 filter: { "name": { "#eq": "Test" } },

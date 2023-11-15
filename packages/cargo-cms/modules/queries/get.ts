@@ -7,10 +7,7 @@ import {ModuleContext} from "@cargo-cms/modules-core";
 import {DatabaseModule} from "../database";
 
 export const makeGet = async (ctx: ModuleContext) => {
-    const [ typeRegistry, database ] = await Promise.all([
-        ctx.require<TypeRegistryModule>("type-registry"),
-        ctx.require<DatabaseModule>("database")
-    ])
+    const [ typeRegistry, database ] = await ctx.requireMany<[TypeRegistryModule, DatabaseModule]>(["type-registry", "database"])
 
     return async (typeName: string, selector: SelectorStructure, args?: Omit<FetchByStructureAdditionalArgs, "query">): Promise<JSONValue[]> => {
         const type = typeRegistry.getEntityType(typeName)

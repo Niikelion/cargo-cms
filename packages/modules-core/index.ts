@@ -3,6 +3,7 @@ export type ModuleContext = {
     init(): Promise<void>
     cleanup(): Promise<void>
     require<T extends Module>(name: T["__type"]): Promise<T>
+    requireMany: <T extends [...Module[]]>(names: { [K in keyof T]: T[K]["__type"] }) => Promise<T>
 }
 
 export type Module<Type extends string = string, Extension extends object = object> = {
@@ -16,6 +17,10 @@ export type Module<Type extends string = string, Extension extends object = obje
 const noop = () => {}
 
 const registeredModules: { [Key in string]: Module<Key> } = {}
+
+function requireMany<T extends [...Module[]]>(names: { [K in keyof T]: T[K]["__type"] }): Promise<T> {
+    return Promise.all(names.map(modules.require)) as Promise<T>
+}
 
 export const modules: ModuleContext = {
     register(m: Module) {
@@ -33,14 +38,15 @@ export const modules: ModuleContext = {
 
         await Promise.all(moduleList.map(m => m.cleanup()))
     },
-    async require<T extends Module>(name: string) {
+    async require<T extends Module>(name: string): Promise<T> {
         if (!(name in registeredModules))
             throw new Error(`Module ${name} not found`)
         const module = registeredModules[name]
         await module.initialization
 
         return module as T
-    }
+    },
+    requireMany: requireMany as ModuleContext["requireMany"]
 }
 
 export const makeModule = <Type extends string, Extension extends object>(name: Type, methods: Partial<Pick<Module, "init" | "cleanup">>, extension: Extension): Module<Type, Extension> => {

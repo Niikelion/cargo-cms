@@ -1,6 +1,5 @@
 import express from 'express'
 import {registerInfoPath} from "./info";
-import {registerRestApiPaths} from "./api";
 import {makeModule, ModuleContext} from "@cargo-cms/modules-core";
 
 const app = express()
@@ -8,7 +7,8 @@ const app = express()
 let context: ModuleContext | null = null
 
 const data = {
-    stop: () => {},
+    app,
+    stop: async () => {},
     start: async (port: number) => {
         if (context === null)
             throw new Error("Http server not initialized")
@@ -17,13 +17,19 @@ const data = {
         app.get("/", (_, res) => res.send("Running"))
 
         registerInfoPath(app)
-        await registerRestApiPaths(context, app)
 
         const server = app.listen(port, () => {
             console.log(`Server running at "http://localhost:${port}"`)
         })
 
-        data.stop = () => server.close()
+        data.stop = () => new Promise<void>((resolve, reject) => {
+            server.close(err => {
+                if (err !== undefined)
+                    reject(err)
+                else
+                    resolve()
+            })
+        })
     }
 }
 

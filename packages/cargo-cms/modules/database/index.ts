@@ -7,6 +7,8 @@ import {generateStructure, getTableName} from "@cargo-cms/database/schema/utils"
 import {getConfig} from "./config";
 import {removeWithFilter} from "@cargo-cms/database/remove";
 import {isString} from "@cargo-cms/utils/filters";
+import {JSONValue} from "@cargo-cms/utils/types";
+import {insert} from "@cargo-cms/database/insert";
 
 const err = () => {
     throw new Error("Database not initialized")
@@ -45,6 +47,11 @@ const data = {
         if (data.raw === null)
             return err()
         return await removeWithFilter(data.raw, generateStructure(schema, selector), getTableName(schema), filter)
+    },
+    async insert(schema: Schema, value: JSONValue) {
+        if (data.raw === null)
+            return err()
+        return await insert(data.raw, generateStructure(schema, "**"), getTableName(schema), value)
     },
     async finish(): Promise<void> {
         if (data.raw === null)

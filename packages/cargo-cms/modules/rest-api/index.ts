@@ -47,6 +47,13 @@ const getRequestType = z.object({
     })
 })
 
+const putRequestType = z.object({
+    params: z.object({
+        type: z.string()
+    }),
+    body: z.record(z.string(), z.unknown())
+})
+
 const deleteRequestType = z.object({
     params: z.object({
         type: z.string()
@@ -81,7 +88,16 @@ const restApiModule = makeModule("rest-api", {
             return { data: entities }
         }))
         restApi.put("/:type", rest(async req => {
-            return {method: req.method}
+            const request = putRequestType.safeParse(req)
+
+            if (!request.success)
+                throw new Error(stringifyZodError(request.error))
+
+            const {params: {type}, body} = request.data
+
+            await queries.insert(type, body as JSONValue)
+
+            return {}
         }))
         restApi.patch("/:type", rest(async req => {
             return {method: req.method}

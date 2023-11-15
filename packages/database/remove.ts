@@ -18,9 +18,5 @@ export const removeWithFilter = async (db: Knex, structure: Structure, tableName
     //TODO: hide behind debug utility
     console.log(query.toSQL().sql)
 
-    const ret: number = await query.then()
-
-    console.log(ret)
-
-    return ret
+    return await query.then()
 }

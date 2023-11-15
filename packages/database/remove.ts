@@ -3,7 +3,6 @@ import {FilterType, Structure} from "./schema";
 import {applyFields, applyFilters, applyJoins, extractDataFromStructure} from "./utils";
 
 export const removeWithFilter = async (db: Knex, structure: Structure, tableName: string, filter: FilterType): Promise<number> => {
-    //TODO: implement
     const query: Knex.QueryBuilder = db(tableName)
 
     const { fields, joins } = extractDataFromStructure(structure)

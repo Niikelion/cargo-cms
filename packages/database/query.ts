@@ -13,7 +13,6 @@ export type QueryByStructureAdditionalArgs = {
     limit?: number
 }
 
-//TODO: split into smaller functions to improve autocomplete in this file
 export const queryByStructure = async (db: Knex, structure: Structure, tableName: string, args?: QueryByStructureAdditionalArgs): Promise<JSONValue[]> => {
     type Handler = (db: Knex, id: number) => Promise<JSONValue>
 

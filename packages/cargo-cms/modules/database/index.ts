@@ -1,10 +1,11 @@
 import {makeModule} from "@cargo-cms/modules-core";
 import knex from "knex"
-import {Schema, SelectorStructure} from "@cargo-cms/database/schema";
-import {fetchByStructure, FetchByStructureAdditionalArgs} from "@cargo-cms/database/query"
+import {FilterType, Schema, SelectorStructure} from "@cargo-cms/database/schema";
+import {queryByStructure, QueryByStructureAdditionalArgs} from "@cargo-cms/database/query"
 import {constructTable, constructTables} from "./table";
 import {generateStructure, getTableName} from "@cargo-cms/database/schema/utils"
 import {getConfig} from "./config";
+import {removeWithFilter} from "@cargo-cms/database/remove";
 
 const err = () => {
     throw new Error("Database not initialized")
@@ -26,10 +27,15 @@ const data = {
             return err()
         await constructTable(data.raw, schema)
     },
-    async query(schema: Schema, selector: SelectorStructure, args?: Omit<FetchByStructureAdditionalArgs, "query">) {
+    async query(schema: Schema, selector: SelectorStructure, args?: Omit<QueryByStructureAdditionalArgs, "query">) {
         if (data.raw === null)
             return err()
-        return await fetchByStructure(data.raw, generateStructure(schema, selector), getTableName(schema), args)
+        return await queryByStructure(data.raw, generateStructure(schema, selector), getTableName(schema), args)
+    },
+    async remove(schema: Schema, selector: SelectorStructure, filter: FilterType) {
+        if (data.raw === null)
+            return err()
+        return await removeWithFilter(data.raw, generateStructure(schema, selector), getTableName(schema), filter)
     },
     async finish(): Promise<void> {
         if (data.raw === null)

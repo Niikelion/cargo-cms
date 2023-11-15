@@ -47,9 +47,18 @@ const getRequestType = z.object({
     })
 })
 
+const deleteRequestType = z.object({
+    params: z.object({
+        type: z.string()
+    }),
+    query: z.object({
+        filter: filterType
+    })
+})
+
 const restApiModule = makeModule("rest-api", {
     async init(ctx) {
-        const [queries, { app }] = await ctx.requireMany<[QueriesModule, HttpServerModule]>(["queries", "http-server"])
+        const [queries, { app }] = await ctx.requireMany<[QueriesModule, HttpServerModule]>("queries", "http-server")
 
         const restApi = express()
 
@@ -66,11 +75,19 @@ const restApiModule = makeModule("rest-api", {
             const entities = await queries.get(type, select, rest)
             return { data: entities }
         }))
-        app.put("/", rest(async (req, res) => {
+        restApi.put("/:type", rest(async (req, res) => {
             return {method: "put"}
         }))
-        app.delete("/", rest(async (req, res) => {
-            return {method: "delete"}
+        restApi.delete("/:type", rest<Record<string, JSONValue>>(async (req, res) => {
+            const request = deleteRequestType.safeParse(req)
+
+            if (!request.success)
+                throw new Error(stringifyZodError(request.error))
+
+            const {params: {type}, query: {filter}} = request.data
+
+            const count = await queries.delete(type, filter)
+            return {deleted: count}
         }))
 
         app.use("/api/rest", restApi)

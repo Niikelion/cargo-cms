@@ -3,7 +3,7 @@ export type ModuleContext = {
     init(): Promise<void>
     cleanup(): Promise<void>
     require<T extends Module>(name: T["__type"]): Promise<T>
-    requireMany: <T extends [...Module[]]>(names: { [K in keyof T]: T[K]["__type"] }) => Promise<T>
+    requireMany: <T extends [...Module[]]>(...names: { [K in keyof T]: T[K]["__type"] }) => Promise<T>
 }
 
 export type Module<Type extends string = string, Extension extends object = object> = {
@@ -18,7 +18,7 @@ const noop = () => {}
 
 const registeredModules: { [Key in string]: Module<Key> } = {}
 
-function requireMany<T extends [...Module[]]>(names: { [K in keyof T]: T[K]["__type"] }): Promise<T> {
+function requireMany<T extends [...Module[]]>(...names: { [K in keyof T]: T[K]["__type"] }): Promise<T> {
     return Promise.all(names.map(modules.require)) as Promise<T>
 }
 

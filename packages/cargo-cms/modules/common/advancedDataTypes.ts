@@ -317,7 +317,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
 
         return tables
     }, ({}) => {
-        //TODO: implement
+        //TODO: implement structure generation
         throw new Error("dynamic components not implemented")
     }, data => {
         const types = data.types.map(type => [type, getEntityType(type)])

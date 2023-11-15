@@ -1,153 +1,58 @@
 import assert from "assert";
-import knex from "knex"
-import {Structure, StructureField, PrimitiveType, FilterType, SortType} from "./schema";
+import {Knex} from "knex";
+import {Structure, PrimitiveType, FilterType, SortType} from "./schema";
 import {unFlattenStructure} from "./schema/utils";
 import {JSONValue} from "@cargo-cms/utils/types"
 import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
+import {applyFields, applyFilters, applyJoins, applySort, extractDataFromStructure} from "./utils";
 
-export type FetchByStructureAdditionalArgs = {
-    query?: knex.Knex.QueryBuilder,
+export type QueryByStructureAdditionalArgs = {
+    query?: Knex.QueryBuilder,
     filter?: FilterType,
     sort?: SortType[],
     limit?: number
 }
 
-export const fetchByStructure = async (db: knex.Knex, structure: Structure, tableName: string, args?: FetchByStructureAdditionalArgs): Promise<JSONValue[]> => {
-    type Handler = (db: knex.Knex, id: number) => Promise<JSONValue>
+//TODO: split into smaller functions to improve autocomplete in this file
+export const queryByStructure = async (db: Knex, structure: Structure, tableName: string, args?: QueryByStructureAdditionalArgs): Promise<JSONValue[]> => {
+    type Handler = (db: Knex, id: number) => Promise<JSONValue>
 
     const { query: q, filter, sort, limit } = args ?? {}
 
-    const query = q ?? db(tableName)
+    const query: Knex.QueryBuilder = q ?? db(tableName)
     assert(query !== undefined)
 
-    const fields: Record<string, string> = {}
-    const joins: [string, Structure["joins"][string]][] = []
     const customs: [string, Handler][] = []
 
-    Object.entries(structure.joins).forEach(join => joins.push(join))
+    const pushCustom = (path: string, handler: Handler) => customs.push([path, handler])
 
-    const extractData = (path: string, s: StructureField) => {
-        const pushCustom = (handler: Handler) => customs.push([path, handler])
-
-        switch (s.type) {
-            case "string": case "number": case "boolean": fields[path] = s.id; break
-            case "object": {
-                if (s.fetch !== undefined) {
-                    pushCustom((db, id) => {
-                        const [tableName, query] = s.fetch(db, id)
-
-                        return fetchByStructure(db, {
-                            data: s,
-                            joins: s.joins
-                        }, tableName, { query })
-                    })
-                    break
-                }
-
-                Object.entries(s.fields).forEach(([name, field]) => {
-                    extractData(path.length > 0 ? `${path}.${name}` : name, field)
-                })
-                break
-            }
-            case "array": {
-                pushCustom((db, id) => {
-                    const [tableName, query] = s.fetch(db, id)
-                    return fetchByStructure(db, s, tableName, { query })
-                })
-                break
-            }
-            case "custom": pushCustom(s.handler); break
-        }
-    }
-
-    extractData("", structure.data)
+    const { fields, joins } = extractDataFromStructure(structure, {
+        onCustomObject: (path, obj) => pushCustom(path, (db, id) => {
+            const [tableName, query] = obj.fetch(db, id)
+            return queryByStructure(db, {
+                data: obj,
+                joins: obj.joins
+            }, tableName, { query })
+        }),
+        onArray: (path, array) => pushCustom(path, (db, id) => {
+            const [tableName, query] = array.fetch(db, id)
+            return queryByStructure(db, array, tableName, { query })
+        }),
+        onCustom: (path, custom) => pushCustom(path, custom.handler)
+    })
 
     query.select(db.raw("?? as ??", [`${tableName}._id`, 'id']))
-    joins.forEach(([_, join]) => join(query))
-    Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
+    applyJoins(query, joins)
+    applyFields(db, query, fields)
 
-    if (limit !== undefined) {
+    if (limit !== undefined)
         query.limit(limit)
-    }
-    if (filter !== undefined) {
-        type CF = (q: knex.Knex.QueryBuilder) => void
-        type Q = knex.Knex.QueryBuilder
-        const applyFilters = (filter: FilterType, query: Q) => {
-            for (const prop in filter) {
-                const v = filter[prop]
+    if (filter !== undefined)
+        applyFilters(query, filter, fields)
+    if (sort !== undefined)
+        applySort(query, sort, fields)
 
-                if (isArray(v)) {
-                    const combiners: Record<string, (f: CF) => void> = {
-                        "#and": (f: CF) => query.andWhere(f),
-                        "#or": (f: CF) => query.orWhere(f),
-                        "#not": (f: CF) => query.whereNot(f)
-                    }
-
-                    if (!Object.keys(combiners).includes(prop))
-                        continue
-
-                    v.forEach((v, i) => {
-                        const innerFilter = (q: Q) => applyFilters(v, q)
-
-                        if (i === 0) {
-                            query.where(innerFilter);
-                            return
-                        }
-
-                        combiners[prop](innerFilter)
-                    })
-
-                    continue
-                }
-
-                for (const op in v) {
-                    const val = v[op]
-
-                    const p = fields[prop]
-                    if (p === undefined)
-                        continue
-
-                    const comparers: Record<string, (q: Q) => void> = {
-                        "#eq": (q: Q) => q.where(p, "=", val),
-                        "#neq": (q: Q) => q.where(p, "<>", val),
-                        "#null": (q: Q) => q.whereNull(p),
-                        "#notNull": (q: Q) => q.whereNotNull(p),
-                        "#lt": (q: Q) => q.where(p, "<", val),
-                        "#lte": (q: Q) => q.where(p, "<=", val),
-                        "#gt": (q: Q) => q.where(p, ">", val),
-                        "#ge": (q: Q) => q.where(p, ">=", val),
-                        "#like": (q: Q) => q.whereLike(p, val),
-                        "#in": (q: Q) => q.whereIn([p], [val as string[]]),
-                        "#between": (q: Q) => q.whereBetween(p, val as [number, number])
-                    }
-
-                    if (!Object.keys(comparers).includes(op))
-                        continue
-
-                    comparers[op](query)
-                }
-            }
-        }
-
-        applyFilters(filter, query)
-    }
-    if (sort !== undefined) {
-        query.orderBy(sort.map((o: SortType) => {
-            const { field, desc } = isString(o) ? { field: o, desc: undefined } : o
-
-            const p = fields[field]
-
-            if (p === undefined)
-                return undefined
-
-            return {
-                column: p,
-                order: (desc ?? false) ? "desc" : "asc",
-                nulls: "last"
-            }
-        }).filter(isDefined))
-    }
-
+    //TODO: hide behind debug utility
     console.log(query.toSQL().sql)
 
     const results: (Record<string, PrimitiveType> & {id: number})[] = await query.then()

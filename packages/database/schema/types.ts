@@ -12,7 +12,7 @@ export type NestedRecord = { [k: string]: NestedRecord | PrimitiveType }
 export type FilterType = { [k: string]: FilterType[] | { [k: string]: PrimitiveType | [number, number] | string[] } }
 export type SortType = { field: string, desc?: boolean } | string
 
-type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]
+export type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]
 
 export type StructureField = {
     type: "string" | "number" | "boolean",

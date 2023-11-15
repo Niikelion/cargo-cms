@@ -60,7 +60,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const tableName = `${table.name}__${name}`
 
         const newTable = build.table(tableName)
-        newTable.int("_entityId", c => c.references("_id").inTable(table.name))
+        newTable.int("_entityId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(table.name))
         newTable.int("_order")
 
         const tables = type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints)).filter(isDefined).flat()
@@ -140,7 +140,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
 
         //we only need to reference other table, use single field
         const singleReference = () => {
-            table.int(name, c => c.nullable().references('_id').inTable(getTableName(type)))
+            table.int(name, c => c.nullable().references('_id', { onDelete: "SET NULL" }).inTable(getTableName(type)))
             return null
         }
 
@@ -148,8 +148,8 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const multiReference = (name: string, first: string, second: string) => {
             const newTable = build.table(name)
 
-            newTable.int("_entityId", c => c.references("_id").inTable(first))
-            newTable.int("_targetId", c => c.references("_id").inTable(second))
+            newTable.int("_entityId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(first))
+            newTable.int("_targetId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(second))
 
             return [ newTable ]
         }

@@ -26,6 +26,17 @@
       "description": {
         "path": "Review"
       }
+    },
+    {
+      "name": "tags",
+      "type": "component",
+      "constraints": {
+        "type": "restaurant.tag",
+        "list": true
+      },
+      "description": {
+        "path": "Tags"
+      }
     }
   ]
 }

@@ -6,6 +6,7 @@ import {constructTable, constructTables} from "./table";
 import {generateStructure, getTableName} from "@cargo-cms/database/schema/utils"
 import {getConfig} from "./config";
 import {removeWithFilter} from "@cargo-cms/database/remove";
+import {isString} from "@cargo-cms/utils/filters";
 
 const err = () => {
     throw new Error("Database not initialized")
@@ -15,7 +16,15 @@ const data = {
     raw: null as knex.Knex | null,
     async setup(configPath: string): Promise<void> {
         const config = await getConfig(configPath)
-        data.raw = knex(config ?? {})
+
+        const db = knex(config ?? {})
+
+        const client = config?.client
+
+        if (client !== undefined && (client === "sqlite" || (!isString(client) && client.name === "sqlite")))
+            await db.raw("PRAGMA foreign_keys = ON")
+
+        data.raw = db
     },
     async constructTables(schemas: Schema[]): Promise<void> {
         if (data.raw === null)

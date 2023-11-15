@@ -26,8 +26,15 @@ const applyField = (fieldData: Field, tableBuilder: knex.Knex.CreateTableBuilder
     if (fieldData.range !== undefined)
         field.checkBetween([fieldData.range.min, fieldData.range.max], c`value_range`)
 
-    if (fieldData.foreign !== undefined)
-        field.references(fieldData.foreign.field).inTable(fieldData.foreign.table)
+    if (fieldData.foreign !== undefined) {
+        const f = field.references(fieldData.foreign.field).inTable(fieldData.foreign.table)
+
+        if (fieldData.foreign.onUpdate !== undefined)
+            f.onUpdate(fieldData.foreign.onUpdate)
+
+        if (fieldData.foreign.onDelete !== undefined)
+            f.onDelete(fieldData.foreign.onDelete)
+    }
 
     if (fieldData.isNullable)
         field.nullable()
@@ -76,9 +83,9 @@ const mkField = (name: string, type: FieldType): Field => {
             ret.range = { min, max }
             return ret
         },
-        references(field: string): { inTable(table: string): Field } {
+        references(field: string, callbacks): { inTable(table: string): Field } {
             return { inTable(table: string): Field {
-                    ret.foreign = { field, table }
+                    ret.foreign = { field, table, onUpdate: callbacks?.onUpdate, onDelete: callbacks?.onDelete }
                     return ret
                 } }
         },

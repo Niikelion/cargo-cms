@@ -56,11 +56,16 @@ const deleteRequestType = z.object({
     })
 })
 
+const data = {
+    api: null as ReturnType<typeof express> | null
+}
+
 const restApiModule = makeModule("rest-api", {
     async init(ctx) {
         const [queries, { app }] = await ctx.requireMany<[QueriesModule, HttpServerModule]>("queries", "http-server")
 
         const restApi = express()
+        restApi.use(express.json())
 
         restApi.set('query parser', (str: string) => qs.parse(str, { ignoreQueryPrefix: true, depth: 20, allowDots: true }))
 
@@ -75,10 +80,13 @@ const restApiModule = makeModule("rest-api", {
             const entities = await queries.get(type, select, rest)
             return { data: entities }
         }))
-        restApi.put("/:type", rest(async (req, res) => {
-            return {method: "put"}
+        restApi.put("/:type", rest(async req => {
+            return {method: req.method}
         }))
-        restApi.delete("/:type", rest<Record<string, JSONValue>>(async (req, res) => {
+        restApi.patch("/:type", rest(async req => {
+            return {method: req.method}
+        }))
+        restApi.delete("/:type", rest<Record<string, JSONValue>>(async req => {
             const request = deleteRequestType.safeParse(req)
 
             if (!request.success)
@@ -91,8 +99,9 @@ const restApiModule = makeModule("rest-api", {
         }))
 
         app.use("/api/rest", restApi)
+        data.api = restApi
     }
-}, {})
+}, data)
 
 export type RestApiModule = typeof restApiModule
 export default restApiModule

@@ -9,7 +9,7 @@ type FullField = {
     isUnique: boolean
     isNullable: boolean
     range?: { min: number, max: number }
-    foreign?: { table: string, field: string }
+    foreign?: { table: string, field: string, onUpdate?: string, onDelete?: string }
     isPositive: boolean
     isNegative: boolean
     isOneOf?: string[]
@@ -23,7 +23,10 @@ type FullField = {
 
 export type Field = FullField & {
     inRange(min: number, max: number): Field
-    references(field: string): { inTable(table: string): Field }
+    references(field: string, callbacks?: {
+        onDelete?: string,
+        onUpdate?: string
+    }): { inTable(table: string): Field }
     positive(): Field
     negative(): Field
     oneOf(values: string[]): Field

@@ -1,9 +1,8 @@
-import {makeModule, ModuleContext} from "@cargo-cms/modules-core";
+import {makeModule} from "@cargo-cms/modules-core";
 import * as z from "zod";
-import {FilterType, SelectorStructure, SortType} from "@cargo-cms/database/schema";
-import express, {Express} from "express";
+import {FilterType, SelectorStructure} from "@cargo-cms/database/schema";
+import express from "express";
 import {QueriesModule} from "../queries";
-import {URL} from "url";
 import qs from "qs";
 import {rest} from "../http-server/utils";
 import {JSONValue} from "@cargo-cms/utils/types";

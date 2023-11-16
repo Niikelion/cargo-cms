@@ -59,4 +59,5 @@ const schemaLoader = makeModule("schema-loader", {
     }
 }, data)
 
+export type SchemaLoaderModule = typeof schemaLoader
 export default schemaLoader

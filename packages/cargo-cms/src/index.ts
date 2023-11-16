@@ -1,23 +1,27 @@
 import {readSchema} from "../modules/schema-loader/reader";
 import * as path from "path";
-import httpServerModule from "../modules/http-server";
 import {modules, Module} from "@cargo-cms/modules-core";
-import typeRegistry, {ComponentType, EntityType} from "../modules/type-registry";
-import common from "../modules/common";
-import schemaLoader from "../modules/schema-loader";
-import queries from "../modules/queries";
-import databaseModule from "../modules/database";
-import restApiModule from "../modules/rest-api";
+import {
+    typeRegistryModule,
+    ComponentType,
+    EntityType,
+    commonModule,
+    schemaLoaderModule,
+    queriesModule,
+    httpServerModule,
+    databaseModule,
+    restApiModule
+} from "../modules"
 
 const root = path.resolve(process.cwd())
 
 const useServer = true
 
 const builtInModules: Module[] = [
-    typeRegistry,
-    common,
-    schemaLoader,
-    queries,
+    typeRegistryModule,
+    commonModule,
+    schemaLoaderModule,
+    queriesModule,
     httpServerModule,
     databaseModule,
     restApiModule
@@ -32,16 +36,16 @@ const main = async () => {
     const schemaFiles = await readSchema(path.resolve(root, `src/schema`))
 
     console.log("Constructing internal representation")
-    const schemas = schemaFiles.map(schemaLoader.fromJson)
+    const schemas = schemaFiles.map(schemaLoaderModule.fromJson)
 
     schemas.forEach(schema => {
         switch (schema.type) {
             case "component": {
-                typeRegistry.registerComponentType(schema as ComponentType)
+                typeRegistryModule.registerComponentType(schema as ComponentType)
                 break
             }
             case "entity": {
-                typeRegistry.registerEntityType(schema as EntityType)
+                typeRegistryModule.registerEntityType(schema as EntityType)
                 break
             }
             default: break
@@ -54,7 +58,7 @@ const main = async () => {
 
     try {
         console.log("Constructing tables")
-        await databaseModule.constructTables(typeRegistry.getAllEntityTypes())
+        await databaseModule.constructTables(typeRegistryModule.getAllEntityTypes())
         console.log("Done")
 
         if (useServer) {
@@ -71,7 +75,7 @@ const main = async () => {
             })
             await httpServerModule.stop()
         } else {
-            const res = await queries.get("restaurant", ["*", { reviews: "*" }], {
+            const res = await queriesModule.get("restaurant", ["*", { reviews: "*" }], {
                 filter: { "name": { "#eq": "Test" } },
                 sort: [ "name" ]
             })

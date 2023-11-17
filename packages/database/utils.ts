@@ -56,7 +56,7 @@ export const extractDataFromStructure = (structure: Structure, handlers?: Extrac
 }
 
 export const applyJoins = (query: Knex.QueryBuilder, joins: Joins): void => {
-    joins.forEach(([_, join]) => join(query))
+    joins.forEach(([_, join]) => join.build(query))
 }
 
 export const applyFields = (db: Knex, query: Knex.QueryBuilder, fields: Fields) => {

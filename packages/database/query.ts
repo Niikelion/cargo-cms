@@ -27,17 +27,19 @@ export const queryByStructure = async (db: Knex, structure: Structure, tableName
 
     const { fields, joins } = extractDataFromStructure(structure, {
         onCustomObject: (path, obj) => pushCustom(path, (db, id) => {
-            const [tableName, query] = obj.fetch(db, id)
+            const tableName = obj.fetch.table
+            const query = obj.fetch.query(db, id)
             return queryByStructure(db, {
                 data: obj,
                 joins: obj.joins
             }, tableName, { query })
         }),
         onArray: (path, array) => pushCustom(path, (db, id) => {
-            const [tableName, query] = array.fetch(db, id)
+            const tableName = array.fetch.table
+            const query = array.fetch.query(db, id)
             return queryByStructure(db, array, tableName, { query })
         }),
-        onCustom: (path, custom) => pushCustom(path, custom.handler)
+        onCustom: (path, custom) => pushCustom(path, custom.fetch)
     })
 
     query.select(db.raw("?? as ??", [`${tableName}._id`, 'id']))

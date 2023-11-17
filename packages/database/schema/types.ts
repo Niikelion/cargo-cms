@@ -1,5 +1,5 @@
 import {Table} from "../types";
-import knex from "knex";
+import {Knex} from "knex";
 import {JSONValue} from "@cargo-cms/utils/types";
 
 export type FieldConstraints = SchemaField["constraints"]
@@ -12,7 +12,15 @@ export type NestedRecord = { [k: string]: NestedRecord | PrimitiveType }
 export type FilterType = { [k: string]: FilterType[] | { [k: string]: PrimitiveType | [number, number] | string[] } }
 export type SortType = { field: string, desc?: boolean } | string
 
-export type FieldFetcher = (db: knex.Knex, id: number) => [string, knex.Knex.QueryBuilder]
+export type FieldFetcher = {
+    table: string,
+    query: (db: Knex, id: number) => Knex.QueryBuilder
+}
+
+export type TableJoin = {
+    table: string,
+    build: (builder: Knex.QueryBuilder) => void
+}
 
 export type StructureField = {
     type: "string" | "number" | "boolean",
@@ -20,6 +28,7 @@ export type StructureField = {
 } | ( {
     type: "array",
     fetch: FieldFetcher
+    upload: { table: string, getLinkData: (id: number, index: number, value: JSONValue) => Record<string, PrimitiveType> } | ((db: Knex, id: number, index: number, value: JSONValue) => Promise<void>)
 } & Structure) | ({
     type: "object",
     fields: { [K in string]: StructureField }
@@ -27,15 +36,16 @@ export type StructureField = {
     fetch?: undefined
 } | {
     fetch: FieldFetcher
-    joins: Record<string, (builder: knex.Knex.QueryBuilder) => void>
+    joins: Record<string, TableJoin>
 })) | {
     type: "custom",
-    handler: (db: knex.Knex, id: number) => Promise<JSONValue>
+    fetch: (db: Knex, id: number) => Promise<JSONValue>
+    upload: (db: Knex, id: number, value: JSONValue) => Promise<void>
 }
 
 export type Structure = {
     data: StructureField
-    joins: Record<string, (builder: knex.Knex.QueryBuilder) => void>
+    joins: Record<string, TableJoin>
 }
 
 export type StructureGeneratorArgs = {
@@ -80,4 +90,9 @@ export type Schema = {
         description?: string
     }
     fields: SchemaField[]
+}
+
+const a = {
+    restaurant: { name: "Test2" },
+    restaurant__tags: (id: number) => ({ __entityId: 2, _order: 0, name: "test tag" })
 }

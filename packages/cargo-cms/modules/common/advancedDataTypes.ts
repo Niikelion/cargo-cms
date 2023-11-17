@@ -3,7 +3,7 @@ import {Structure, StructureField} from "@cargo-cms/database/schema";
 import {fieldConstraintsSchema} from "../schema-loader/reader";
 import {z} from "zod";
 import {build, Table} from "@cargo-cms/database";
-import {isDefined} from "@cargo-cms/utils/filters";
+import {isDefined, isNumber} from "@cargo-cms/utils/filters";
 import {nameGenerator} from "@cargo-cms/utils/generators";
 import assert from "assert";
 import {TypeRegistryModule} from "../type-registry";
@@ -60,6 +60,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const tableName = `${table.name}__${name}`
 
         const newTable = build.table(tableName)
+        //TODO: make composite key
         newTable.int("_entityId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(table.name))
         newTable.int("_order")
 
@@ -116,7 +117,14 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         return {
             data: {
                 type: "array",
-                fetch: (db, id) => [ tableName, db(tableName).where({ _entityId: id }).orderBy("_order", "asc", "last") ],
+                fetch: {
+                    table: tableName,
+                    query: (db, id) => db(tableName).where({ _entityId: id }).orderBy("_order", "asc", "last")
+                },
+                upload: {
+                    table: tableName,
+                    getLinkData: (id, i) => ({ _entityId: id, _order: i })
+                },
                 ...componentStructure
             }, joins: {}
         } satisfies Structure
@@ -148,6 +156,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const multiReference = (name: string, first: string, second: string) => {
             const newTable = build.table(name)
 
+            //TODO: make composite key
             newTable.int("_entityId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(first))
             newTable.int("_targetId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(second))
 
@@ -190,7 +199,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         } = args
 
         if (selector === "**")
-            return { data: { type: "object", fields: {} }, joins: {} }
+            return { data: { type: "object", fields: {} }, joins: {} } satisfies Structure
 
         const type = getEntityType(data.type)
 
@@ -209,11 +218,14 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
             return {
                 data: structure.data,
                 joins: {
-                    [otherTableName]: query =>
-                        query.leftJoin(
-                            `${otherTableName} AS ${otherTableAlias}`,
-                            `${table}.${path}`,
-                            `${otherTableAlias}._id`),
+                    [otherTableAlias]: {
+                        table: otherTableName,
+                        build: query =>
+                            query.leftJoin(
+                                `${otherTableName} AS ${otherTableAlias}`,
+                                `${table}.${path}`,
+                                `${otherTableAlias}._id`)
+                    },
                     ...structure.joins
                 }
             } satisfies Structure
@@ -226,7 +238,20 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                 data: {
                     type: "array",
                     ...structure,
-                    fetch: (db, id) => [otherTableName, db(linkTable).where({_entityId: id}).leftJoin(otherTableName, `${linkTable}._targetId`, `${otherTableName}._id`)]
+                    fetch: {
+                        table: otherTableName,
+                        query: (db, id) =>
+                            db(linkTable).where({_entityId: id}).leftJoin(otherTableName, `${linkTable}._targetId`, `${otherTableName}._id`)
+                    },
+                    upload: {
+                        table: linkTable,
+                        getLinkData: (id, i, v) => {
+                            assert(v !== null && typeof v === "object" && "id" in v)
+                            const index = v["id"]
+                            assert(isNumber(index))
+                            return ({_entityId: id, _targetId: index});
+                        }
+                    }
                 },
                 joins: {}
             } satisfies Structure
@@ -241,10 +266,21 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                 data: {
                     type: "array",
                     ...structure,
-                    fetch: (db, id) => [ otherTableName, db(otherTableName).where({ [otherName]: id }) ]
+                    fetch: {
+                        table: otherTableName,
+                        query: (db, id) =>
+                            db(otherTableName).where({ [otherName]: id })
+                    },
+                    upload: async (db, id, i, v) => {
+                        assert(v !== null && typeof v === "object" && "id" in v)
+                        const index = v["id"]
+                        assert(isNumber(index))
+
+                        db(otherTableName).update({[otherName]: id}).where('_id', index)
+                    }
                 },
                 joins: {}
-            }
+            } satisfies Structure
         }
 
         const t1 = `${table}__${path}`
@@ -263,7 +299,20 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
             data: {
                 type: "array",
                 ...structure,
-                fetch: (db, id) => [otherTableName, db(tableName).where({[field]: id}).leftJoin(otherTableName, `${tableName}.${field}`, `${otherTableName}.${otherField}`)]
+                fetch: {
+                    table: otherTableName,
+                    query: (db, id) =>
+                        db(tableName).where({[field]: id}).leftJoin(otherTableName, `${tableName}.${field}`, `${otherTableName}.${otherField}`)
+                },
+                upload: {
+                    table: tableName,
+                    getLinkData: (id, i, v) => {
+                        assert(v !== null && typeof v === "object" && "id" in v)
+                        const index = v["id"]
+                        assert(isNumber(index))
+                        return ({[field]: id, [otherField]: index});
+                    }
+                }
             },
             joins: {}
         } satisfies Structure

@@ -23,8 +23,12 @@ const data = {
 
         const client = config?.client
 
-        if (client !== undefined && (client === "sqlite" || (!isString(client) && client.name === "sqlite")))
-            await db.raw("PRAGMA foreign_keys = ON")
+        const isSqlite = client !== undefined && (client === "sqlite" || (!isString(client) && client.name === "sqlite"))
+
+        console.log({isSqlite})
+
+        if (isSqlite)
+            await db.raw("PRAGMA foreign_keys = ON").then()
 
         data.raw = db
     },

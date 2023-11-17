@@ -7,3 +7,6 @@ export const isBool = (v: unknown): v is boolean => typeof v === "boolean" || v 
 export const isString = (v: unknown): v is string => typeof v === "string" || v instanceof String
 
 export const isArray = (v: unknown): v is unknown[] => Array.isArray(v)
+
+export const isPrimitive = (v: unknown): v is (string | number | boolean | null) =>
+    isString(v) || isNumber(v) || isBool(v) || v === null

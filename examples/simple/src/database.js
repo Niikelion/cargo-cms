@@ -9,9 +9,9 @@ module.exports = ({ env }) => {
                 connectionString: env('DATABASE_URL'),
                 host: env('DATABASE_HOST', 'localhost'),
                 port: env.int('DATABASE_PORT', 3306),
-                database: env('DATABASE_NAME', 'strapi'),
-                user: env('DATABASE_USERNAME', 'strapi'),
-                password: env('DATABASE_PASSWORD', 'strapi'),
+                database: env('DATABASE_NAME', 'cargo'),
+                user: env('DATABASE_USERNAME', 'cargo'),
+                password: env('DATABASE_PASSWORD', 'cargo'),
                 ssl: env.bool('DATABASE_SSL', false) && {
                     key: env('DATABASE_SSL_KEY', undefined),
                     cert: env('DATABASE_SSL_CERT', undefined),
@@ -30,9 +30,9 @@ module.exports = ({ env }) => {
             connection: {
                 host: env('DATABASE_HOST', 'localhost'),
                 port: env.int('DATABASE_PORT', 3306),
-                database: env('DATABASE_NAME', 'strapi'),
-                user: env('DATABASE_USERNAME', 'strapi'),
-                password: env('DATABASE_PASSWORD', 'strapi'),
+                database: env('DATABASE_NAME', 'cargo'),
+                user: env('DATABASE_USERNAME', 'cargo'),
+                password: env('DATABASE_PASSWORD', 'cargo'),
                 ssl: env.bool('DATABASE_SSL', false) && {
                     key: env('DATABASE_SSL_KEY', undefined),
                     cert: env('DATABASE_SSL_CERT', undefined),
@@ -52,9 +52,9 @@ module.exports = ({ env }) => {
                 connectionString: env('DATABASE_URL'),
                 host: env('DATABASE_HOST', 'localhost'),
                 port: env.int('DATABASE_PORT', 5432),
-                database: env('DATABASE_NAME', 'strapi'),
-                user: env('DATABASE_USERNAME', 'strapi'),
-                password: env('DATABASE_PASSWORD', 'strapi'),
+                database: env('DATABASE_NAME', 'cargo'),
+                user: env('DATABASE_USERNAME', 'cargo'),
+                password: env('DATABASE_PASSWORD', 'cargo'),
                 ssl: env.bool('DATABASE_SSL', false) && {
                     key: env('DATABASE_SSL_KEY', undefined),
                     cert: env('DATABASE_SSL_CERT', undefined),

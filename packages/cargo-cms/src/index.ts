@@ -15,7 +15,7 @@ import {
 
 const root = path.resolve(process.cwd())
 
-const useServer = true
+const useServer = false
 
 const builtInModules: Module[] = [
     typeRegistryModule,
@@ -75,11 +75,17 @@ const main = async () => {
             })
             await httpServerModule.stop()
         } else {
-            const res = await queriesModule.get("restaurant", ["*", { reviews: "*" }], {
-                filter: { "name": { "#eq": "Test" } },
-                sort: [ "name" ]
+            // const res = await queriesModule.get("restaurant", ["*", { reviews: "*" }], {
+            //     filter: { "name": { "#eq": "Test" } },
+            //     sort: [ "name" ]
+            // })
+            // console.dir(res, {depth: 10})
+            await queriesModule.insert("restaurant", {
+                name: "Test2",
+                reviews: [],
+                tags: [ { name: "Bad" } ]
             })
-            console.dir(res, {depth: 10})
+            await queriesModule.delete("restaurant", { name: { "!eq": "Test2" } })
         }
 
     } finally {

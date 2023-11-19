@@ -198,19 +198,21 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
             uuidGenerator
         } = args
 
-        if (selector === "**")
+        const relation = data.relation
+
+        const isSimpleRelation = relation === "one" || relation === "oneToOne" || relation === "manyToOne"
+
+        //TODO: instead of returning empty object, return depending on relation type
+        if (selector === "**") {
             return { data: { type: "object", fields: {} }, joins: {} } satisfies Structure
+        }
 
         const type = getEntityType(data.type)
 
         assert(type !== null)
 
-        const relation = data.relation
-
         const otherTableName = getTableName(type)
         const otherTableAlias = uuidGenerator()
-
-        const isSimpleRelation = relation === "one" || relation === "oneToOne" || relation === "manyToOne"
 
         const structure = generateStructure(type, selector, { uuidGenerator, tableName: isSimpleRelation ? otherTableAlias : undefined })
 

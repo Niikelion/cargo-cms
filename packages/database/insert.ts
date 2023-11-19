@@ -16,7 +16,7 @@ type InsertPlan = {
     custom: ((db: Knex, id: number) => Promise<void>)[]
 }
 
-const dig = (obj: JSONValue, path: string, separator: string = ".") => {
+const dig = (obj: JSONValue, path: string, separator: string = "/") => {
     let ret: JSONValue = obj
     const parts = path.split(separator)
     parts.forEach(part => {
@@ -35,14 +35,10 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
     const paramTables: ((id: number) => InsertPlan)[] = []
     const customInsertions: InsertPlan["custom"] = []
 
-    //TODO: handle objects with fetch
     const { fields, joins } = extractDataFromStructure(structure, {
         onArray: (path, arr) => {
             const v = dig(value, path)
-
             assert(isArray(v))
-
-            console.dir({v})
 
             const u = arr.upload
 
@@ -63,6 +59,32 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
 
                     return plan
                 })
+            })
+        },
+        onCustomObject: (path, obj) => {
+            const v = dig(value, path)
+
+            const u = obj.upload
+            if (u instanceof Function) {
+                customInsertions.push((db, id) => u(db, id, v))
+                return
+            }
+
+            const plan = extractInsertPlan({
+                data: {
+                    type: "object",
+                    fields: obj.fields
+                },
+                joins: obj.joins
+            }, u.table, v)
+
+            paramTables.push((id: number) => {
+                plan.mainTable.data = {
+                    ...plan.mainTable.data,
+                    ...u.getLinkData(id,v)
+                }
+
+                return plan
             })
         },
         onCustom: (path, custom) => {
@@ -105,7 +127,7 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
 
         const filter = (e: [string, JSONValue]): e is [string, PrimitiveType] => isPrimitive(e[1])
 
-        //TODO: refine value using custom handlers
+        //TODO: maybe refine value using custom handlers?
         const finalData = Object.fromEntries(Object.entries(data[name]).filter(filter))
 
         additionalTables.push({

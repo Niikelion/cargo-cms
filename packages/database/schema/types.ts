@@ -34,8 +34,10 @@ export type StructureField = {
     fields: { [K in string]: StructureField }
 } & ({
     fetch?: undefined
+    upload?: undefined
 } | {
     fetch: FieldFetcher
+    upload: { table: string, getLinkData: (id: number, value: JSONValue) => Record<string, PrimitiveType> } | ((db: Knex, id: number, value: JSONValue) => Promise<void>)
     joins: Record<string, TableJoin>
 })) | {
     type: "custom",

@@ -70,6 +70,7 @@ type FieldCreator<V extends string, F extends Partial<Field>> = <N extends strin
 export type Table<V extends string> = {
     readonly name: string
     readonly fields: Fields<V>
+    readonly composites: string[][]
 
     readonly int: FieldCreator<V, NumericField>
     readonly inc: FieldCreator<V, NumericField>
@@ -78,6 +79,7 @@ export type Table<V extends string> = {
     readonly string: FieldCreator<V, TextField>
     readonly text: FieldCreator<V, TextField>
     readonly bool: FieldCreator<V, BooleanField>
+    readonly composite: (fields: string[]) => Table<V>
 
     apply(builder: knex.Knex.CreateTableBuilder, existed: boolean, columns: Set<string>): void
 }

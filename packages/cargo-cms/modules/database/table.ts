@@ -44,7 +44,9 @@ export const rawConstructTable = async (db: knex.Knex, table: Table<never>) => {
     const prevUniques = new Set<string>()
 
     if (exists) {
-        const c = await schemaInspector(db).columnInfo(tableName)
+        const inspector = schemaInspector(db)
+
+        const c = await inspector.columnInfo(tableName)
         for (const column of c) {
             const col = column.name
             prevColumns.add(col)

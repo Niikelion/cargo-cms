@@ -1,6 +1,7 @@
-import {FieldFetcher, FilterType, SortType, Structure, StructureField} from "./schema";
+import {FieldFetcher, FilterType, SelectorStructure, SortType, Structure, StructureField} from "./schema";
 import {Knex} from "knex";
 import {isArray, isDefined, isString} from "@cargo-cms/utils/filters";
+import {JSONValue} from "@cargo-cms/utils/types";
 
 type ExtractHandlers = {
     onCustomObject?: (path: string, obj: StructureField & { type: "object", fetch: FieldFetcher }) => void
@@ -63,22 +64,86 @@ export const applyFields = (db: Knex, query: Knex.QueryBuilder, fields: Fields) 
     Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
 }
 
-export const applyFilters = (query: Knex.QueryBuilder, filter: FilterType, fields: Fields): void => {
-    type Q = Knex.QueryBuilder
-    type CF = (q: Q) => void
+type Q = Knex.QueryBuilder
+type CF = (q: Q) => void
 
+const filterCombiners = {
+    "!and": (q: Q, f: CF) => q.andWhere(f),
+    "!or": (q: Q, f: CF) => q.orWhere(f),
+    "!not": (q: Q, f: CF) => q.whereNot(f)
+} as const
+type FilterCombinerName = keyof typeof filterCombiners
+const supportedFilterCombiners = Object.keys(filterCombiners) as FilterCombinerName[]
+const isFilterCombinerName = (v: string): v is FilterCombinerName => supportedFilterCombiners.includes(v as FilterCombinerName)
+
+const filterComparers = {
+    "!eq": (q: Q, p: string, v: JSONValue) => q.where(p, "=", v),
+    "!neq": (q: Q, p: string, v: JSONValue) => q.where(p, "<>", v),
+    "!null": (q: Q, p: string, _: JSONValue) => q.whereNull(p),
+    "!notNull": (q: Q, p: string, _: JSONValue) => q.whereNotNull(p),
+    "!lt": (q: Q, p: string, v: JSONValue) => q.where(p, "<", v),
+    "!lte": (q: Q, p: string, v: JSONValue) => q.where(p, "<=", v),
+    "!gt": (q: Q, p: string, v: JSONValue) => q.where(p, ">", v),
+    "!ge": (q: Q, p: string, v: JSONValue) => q.where(p, ">=", v),
+    "!like": (q: Q, p: string, v: JSONValue) => q.whereLike(p, v),
+    "!in": (q: Q, p: string, v: JSONValue) => q.whereIn([p], [v as string[]]),
+    "!between": (q: Q, p: string, v: JSONValue) => q.whereBetween(p, v as [number, number])
+} as const
+type FilterComparerName = keyof typeof filterComparers
+const supportedFilterComparers = Object.keys(filterComparers) as FilterComparerName[]
+const isFilterComparerName = (v: string): v is FilterComparerName => supportedFilterComparers.includes(v as FilterComparerName)
+
+export const generateSelectorFromFilter = (filter: FilterType): SelectorStructure => {
+    const paths: string[] = []
+
+    const extractPaths = (filter: FilterType): void => {
+        for (const prop in filter) {
+            const v = filter[prop]
+
+            if (isArray(v)) {
+                if (!isFilterCombinerName(prop))
+                    continue
+
+                v.forEach(extractPaths)
+            }
+
+            for (const op in v) {
+                if (!isFilterComparerName(op))
+                    continue
+
+                paths.push(prop)
+            }
+        }
+    }
+
+    extractPaths(filter)
+
+    type NarrowSelector = { [k: string]: NarrowSelector }
+
+    let selector: NarrowSelector = {}
+
+    for (const path of paths) {
+        const parts = path.split(".")
+
+        let c: NarrowSelector = selector
+
+        for (const part of parts) {
+            c = c[part] ??= {}
+        }
+    }
+
+    return selector
+}
+
+export const applyFilters = (query: Knex.QueryBuilder, filter: FilterType, fields: Fields): void => {
     for (const prop in filter) {
         const v = filter[prop]
 
         if (isArray(v)) {
-            const combiners: Record<string, (f: CF) => void> = {
-                "!and": (f: CF) => query.andWhere(f),
-                "!or": (f: CF) => query.orWhere(f),
-                "!not": (f: CF) => query.whereNot(f)
-            }
-
-            if (!Object.keys(combiners).includes(prop))
+            if (!isFilterCombinerName(prop))
                 continue
+
+            const combine = filterCombiners[prop]
 
             v.forEach((v, i) => {
                 const innerFilter = (q: Q) => applyFilters(q, v, fields)
@@ -88,37 +153,23 @@ export const applyFilters = (query: Knex.QueryBuilder, filter: FilterType, field
                     return
                 }
 
-                combiners[prop](innerFilter)
+                combine(query, innerFilter)
             })
 
             continue
         }
 
         for (const op in v) {
-            const val = v[op]
+            if (!isFilterComparerName(op))
+                continue
 
             const p = fields[prop]
+
             if (p === undefined)
                 continue
 
-            const comparers: Record<string, (q: Q) => void> = {
-                "!eq": (q: Q) => q.where(p, "=", val),
-                "!neq": (q: Q) => q.where(p, "<>", val),
-                "!null": (q: Q) => q.whereNull(p),
-                "!notNull": (q: Q) => q.whereNotNull(p),
-                "!lt": (q: Q) => q.where(p, "<", val),
-                "!lte": (q: Q) => q.where(p, "<=", val),
-                "!gt": (q: Q) => q.where(p, ">", val),
-                "!ge": (q: Q) => q.where(p, ">=", val),
-                "!like": (q: Q) => q.whereLike(p, val),
-                "!in": (q: Q) => q.whereIn([p], [val as string[]]),
-                "!between": (q: Q) => q.whereBetween(p, val as [number, number])
-            }
-
-            if (!Object.keys(comparers).includes(op))
-                continue
-
-            comparers[op](query)
+            const compare = filterComparers[op]
+            compare(query, p, v[op])
         }
     }
 }

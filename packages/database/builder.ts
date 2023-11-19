@@ -129,7 +129,7 @@ const mkField = (name: string, type: FieldType): Field => {
     return ret
 }
 
-const fieldCreator = <V extends string, F extends Partial<Field>> (tableName: string, fields: Fields<V>, type: FieldType) => <N extends string>(name: N, constraintsBuilder?: (field: F) => void): Table<V | N> => {
+const fieldCreator = <V extends string, F extends Partial<Field>> (tableName: string, fields: Fields<V>, composites: string[][], type: FieldType) => <N extends string>(name: N, constraintsBuilder?: (field: F) => void): Table<V | N> => {
     const field = mkField(name, type)
 
     if (constraintsBuilder)
@@ -139,31 +139,40 @@ const fieldCreator = <V extends string, F extends Partial<Field>> (tableName: st
 
     newFields[name] = field
 
-    return mkTable<V | N>(tableName, newFields)
+    return mkTable<V | N>(tableName, newFields, composites)
 }
 
-const mkTable = <V extends string>(name: string, fields: Fields<V>): Table<V> => {
+const mkTable = <V extends string>(name: string, fields: Fields<V>, composites: string[][]): Table<V> => {
     return {
         name,
         fields,
+        composites,
 
-        int: fieldCreator<V, NumericField>(name, fields, "integer"),
-        inc: fieldCreator<V, NumericField>(name, fields, "increments"),
-        float: fieldCreator<V, NumericField>(name, fields, "float"),
-        double: fieldCreator<V, NumericField>(name, fields, "double"),
-        string: fieldCreator<V, TextField>(name, fields, "varchar"),
-        text: fieldCreator<V, TextField>(name, fields, "text"),
-        bool: fieldCreator<V, BooleanField>(name, fields, "boolean"),
+        int: fieldCreator<V, NumericField>(name, fields, composites, "integer"),
+        inc: fieldCreator<V, NumericField>(name, fields, composites, "increments"),
+        float: fieldCreator<V, NumericField>(name, fields, composites, "float"),
+        double: fieldCreator<V, NumericField>(name, fields, composites, "double"),
+        string: fieldCreator<V, TextField>(name, fields, composites, "varchar"),
+        text: fieldCreator<V, TextField>(name, fields, composites, "text"),
+        bool: fieldCreator<V, BooleanField>(name, fields, composites, "boolean"),
+
+        composite(columns: string[]) {
+            composites.push(columns)
+            return mkTable(name, fields, composites)
+        },
 
         apply(builder, exists, columns) {
             for (const f in fields) {
                 const field = fields[f]
                 field.apply(builder, exists && columns.has(field.name))
             }
+            for (const composite of composites) {
+                builder.unique(composite)
+            }
         }
     } satisfies Table<V>
 }
 
 export const build = {
-    table(name: string) { return mkTable<never>(name, {}) }
+    table(name: string) { return mkTable<never>(name, {}, []) }
 }

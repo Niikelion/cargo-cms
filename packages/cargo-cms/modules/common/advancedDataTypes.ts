@@ -60,9 +60,9 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const tableName = `${table.name}__${name}`
 
         const newTable = build.table(tableName)
-        //TODO: make composite key
         newTable.int("_entityId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(table.name))
         newTable.int("_order")
+        newTable.composite(["_entityId", "_order"])
 
         const tables = type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints)).filter(isDefined).flat()
 
@@ -156,9 +156,9 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const multiReference = (name: string, first: string, second: string) => {
             const newTable = build.table(name)
 
-            //TODO: make composite key
             newTable.int("_entityId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(first))
             newTable.int("_targetId", c => c.references("_id", { onDelete: "CASCADE" }).inTable(second))
+            newTable.composite(["_entityId", "_targetId"])
 
             return [ newTable ]
         }

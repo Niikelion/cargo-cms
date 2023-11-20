@@ -247,7 +247,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                     },
                     upload: {
                         table: linkTable,
-                        getLinkData: (id, i, v) => {
+                        getLinkData: (id, _, v) => {
                             assert(v !== null && typeof v === "object" && "id" in v)
                             const index = v["id"]
                             assert(isNumber(index))
@@ -273,7 +273,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                         query: (db, id) =>
                             db(otherTableName).where({ [otherName]: id })
                     },
-                    upload: async (db, id, i, v) => {
+                    upload: async (db, id, _, v) => {
                         assert(v !== null && typeof v === "object" && "id" in v)
                         const index = v["id"]
                         assert(isNumber(index))
@@ -308,7 +308,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                 },
                 upload: {
                     table: tableName,
-                    getLinkData: (id, i, v) => {
+                    getLinkData: (id, _, v) => {
                         assert(v !== null && typeof v === "object" && "id" in v)
                         const index = v["id"]
                         assert(isNumber(index))

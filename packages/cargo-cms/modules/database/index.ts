@@ -66,6 +66,5 @@ const data = {
 
 const databaseModule = makeModule("database", {}, data)
 
-export type Database = typeof data
 export type DatabaseModule = typeof databaseModule
 export default databaseModule

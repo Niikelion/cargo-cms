@@ -93,8 +93,3 @@ export type Schema = {
     }
     fields: SchemaField[]
 }
-
-const a = {
-    restaurant: { name: "Test2" },
-    restaurant__tags: (id: number) => ({ __entityId: 2, _order: 0, name: "test tag" })
-}

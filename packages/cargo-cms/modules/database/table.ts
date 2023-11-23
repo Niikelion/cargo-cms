@@ -41,22 +41,29 @@ export const rawConstructTable = async (db: knex.Knex, table: Table<never>) => {
 
     const exists = await ds.hasTable(tableName)
     const prevColumns = new Set<string>()
-    const prevUniques = new Set<string>()
+    const prevUniques: string[] = []
 
     if (exists) {
         const inspector = schemaInspector(db)
 
-        const c = await inspector.columnInfo(tableName)
-        for (const column of c) {
-            const col = column.name
-            prevColumns.add(col)
-            if (column.is_unique)
-                prevUniques.add(col)
+        const constraints = await inspector.uniqueConstraints(tableName)
+
+        for (const constraint of constraints) {
+            prevUniques.push(constraint.constraint_name ?? "")
+        }
+
+        const columns = (await inspector.columnInfo(tableName)).map(c => c.name)
+        for (const column of columns) {
+            prevColumns.add(column)
         }
     }
 
     const builder = (creator: knex.Knex.CreateTableBuilder) => {
-        creator.dropForeign([...prevColumns])
+        if (prevColumns.size > 0)
+            creator.dropForeign([...prevColumns])
+
+        for (const unique of prevUniques)
+            creator.dropUnique([], unique)
 
         if (!exists)
             creator.increments("_id")
@@ -69,11 +76,6 @@ export const rawConstructTable = async (db: knex.Knex, table: Table<never>) => {
 
         if (columnsToRemove.length > 0)
             creator.dropColumns(...columnsToRemove);
-
-        Object.entries<Field>(table.fields).forEach(([n, field]) => {
-            if (!field.isUnique && prevUniques.has(n))
-                creator.dropUnique([n])
-        })
     }
 
     if (exists)

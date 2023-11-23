@@ -5,7 +5,6 @@
   "dependencies": {
     "@cargo-cms/utils": "*",
     "knex": "^3.0.1",
-    "knex-schema-inspector": "^3.1.0",
     "mysql": "^2.18.1",
     "mysql2": "^3.6.2",
     "oracledb": "^6.2.0",

@@ -1,9 +1,8 @@
 import {Knex} from "knex";
 import {PrimitiveType, Structure} from "./schema";
-import {JSONValue} from "@cargo-cms/utils/types";
 import {extractDataFromStructure} from "./utils";
-import {isArray, isPrimitive} from "@cargo-cms/utils/filters";
 import assert from "assert";
+import {JSONValue, isArray, isPrimitive} from "@cargo-cms/utils";
 
 type TablePlan = {
     name: string,
@@ -160,7 +159,7 @@ const executeInsertPlan = async (db: Knex, plan: InsertPlan, logSql?: (sql: stri
     const { mainTable, tables, dependentTables, custom } = plan
 
     const mainTask = async () => {
-        const query = db.insert(mainTable.data).into(mainTable.name).returning("_id").onConflict(["_id"]).merge()
+        const query = db.insert(mainTable.data).into(mainTable.name).returning("_id")
 
         if (logSql)
             logSql(query.toSQL().sql)
@@ -179,7 +178,7 @@ const executeInsertPlan = async (db: Knex, plan: InsertPlan, logSql?: (sql: stri
     }
 
     const [id] = await Promise.all([mainTask(), ...tables.map(async table => {
-        const query = db.insert(table.data).into(table.name).onConflict(["_id"]).merge()
+        const query = db.insert(table.data).into(table.name)
 
         if (logSql)
             logSql(query.toSQL().sql)

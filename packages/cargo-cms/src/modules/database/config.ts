@@ -1,4 +1,4 @@
-import {isBool, isNumber} from "@cargo-cms/utils/filters";
+import {isBool, isNumber} from "@cargo-cms/utils";
 import knex from "knex";
 import fs from "fs/promises";
 import path from "path";

@@ -1,7 +1,6 @@
 import {z} from "zod";
 import {findFilesRecursive} from "@cargo-cms/utils/files";
-import {isDefined} from "@cargo-cms/utils/filters";
-import {stringifyZodError} from "@cargo-cms/utils/errors";
+import {stringifyZodError, isDefined} from "@cargo-cms/utils";
 import * as fs from "fs/promises";
 
 const entityTypeSchema = z.union([z.literal("entity"), z.literal("component")])

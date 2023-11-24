@@ -2,5 +2,14 @@
   "name": "@cargo-cms/modules-core",
   "version": "1.0.0",
   "license": "MIT",
+  "files": [
+    "./dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
   "dependencies": {}
 }

@@ -1,6 +1,6 @@
 import {Schema, SchemaField, DataType} from "@cargo-cms/database/schema";
 import {SchemaFile, SchemaFileFieldSchema} from "./reader";
-import {pick} from "@cargo-cms/utils/objects";
+import {pick} from "@cargo-cms/utils";
 import {makeModule} from "@cargo-cms/modules-core";
 import {TypeRegistryModule} from "../type-registry";
 

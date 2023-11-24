@@ -2,8 +2,7 @@ import assert from "assert";
 import {Knex} from "knex";
 import {Structure, PrimitiveType, FilterType, SortType} from "./schema";
 import {unFlattenStructure} from "./schema/utils";
-import {JSONValue} from "@cargo-cms/utils/types"
-import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters"
+import {JSONValue, isArray, isDefined, isPrimitive} from "@cargo-cms/utils"
 import {applyFields, applyFilters, applyJoins, applySort, extractDataFromStructure} from "./utils";
 
 export type QueryByStructureAdditionalArgs = {
@@ -76,7 +75,7 @@ export const queryByStructure = async (db: Knex, structure: Structure, tableName
             parts.forEach(part =>  {
                 const next = root[part]
                 assert(isDefined(next))
-                assert(!(isNumber(next) || isString(next) || isBool(next) || isArray(next)))
+                assert(!isPrimitive(next) && !isArray(next))
 
                 root = next
             })

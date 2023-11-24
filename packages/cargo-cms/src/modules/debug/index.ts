@@ -1,5 +1,5 @@
 import {makeModule} from "@cargo-cms/modules-core";
-import {JSONValue} from "@cargo-cms/utils/types";
+import {JSONValue} from "@cargo-cms/utils";
 
 const handlers: Record<string, {
     enabled: boolean

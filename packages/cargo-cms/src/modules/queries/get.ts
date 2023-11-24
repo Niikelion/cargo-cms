@@ -1,4 +1,4 @@
-import {JSONValue} from "@cargo-cms/utils/types";
+import {JSONValue} from "@cargo-cms/utils";
 import {RestApiError} from "../http-server/utils";
 import {SelectorStructure} from "@cargo-cms/database/schema";
 import {QueryByStructureAdditionalArgs} from "@cargo-cms/database/query";

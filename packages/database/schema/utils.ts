@@ -7,10 +7,8 @@ import {
     Structure,
     StructureField, StructureGeneratorArgs
 } from "@cargo-cms/database/schema";
-import {stringifyZodError} from "@cargo-cms/utils/errors";
-import {isArray, isBool, isDefined, isNumber, isString} from "@cargo-cms/utils/filters";
+import {stringifyZodError, isArray, isBool, isDefined, isNumber, isString, JSONValue} from "@cargo-cms/utils";
 import {Field, Table} from "@cargo-cms/database";
-import {JSONValue} from "@cargo-cms/utils/types";
 import assert from "assert";
 
 export const getTableName = (schema: Schema) => schema.name.replace(".", "_")

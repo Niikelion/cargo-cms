@@ -3,7 +3,7 @@ import {Structure, StructureField} from "@cargo-cms/database/schema";
 import {fieldConstraintsSchema} from "../schema-loader/reader";
 import {z} from "zod";
 import {build, Table} from "@cargo-cms/database";
-import {isDefined, isNumber} from "@cargo-cms/utils/filters";
+import {isDefined, isNumber} from "@cargo-cms/utils";
 import {nameGenerator} from "@cargo-cms/utils/generators";
 import assert from "assert";
 import {TypeRegistryModule} from "../type-registry";

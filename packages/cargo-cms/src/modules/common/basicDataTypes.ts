@@ -1,6 +1,6 @@
 import {z} from "zod";
 import {fieldConstraintsSchema} from "../schema-loader/reader";
-import {isDefined} from "@cargo-cms/utils/filters";
+import {isDefined} from "@cargo-cms/utils";
 import {singleFieldDataType} from "@cargo-cms/database/schema/utils";
 import {NumericField, TextField} from "@cargo-cms/database";
 import {TypeRegistryModule} from "../type-registry";

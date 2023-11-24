@@ -1,6 +1,6 @@
 import {Table} from "../types";
 import {Knex} from "knex";
-import {JSONValue} from "@cargo-cms/utils/types";
+import {JSONValue} from "@cargo-cms/utils";
 
 export type FieldConstraints = SchemaField["constraints"]
 

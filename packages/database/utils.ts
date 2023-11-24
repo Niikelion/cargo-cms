@@ -1,7 +1,6 @@
 import {FieldFetcher, FilterType, SelectorStructure, SortType, Structure, StructureField} from "./schema";
 import {Knex} from "knex";
-import {isArray, isDefined, isString} from "@cargo-cms/utils/filters";
-import {JSONValue} from "@cargo-cms/utils/types";
+import {isArray, isDefined, isString, JSONValue} from "@cargo-cms/utils";
 
 type ObjWithUpload = StructureField & { type: "object" } & Required<Pick<StructureField & {type: "object"}, "upload">>
 

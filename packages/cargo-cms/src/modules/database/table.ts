@@ -2,7 +2,7 @@ import knex from "knex";
 import schemaInspector from 'knex-schema-inspector';
 import {Schema} from "@cargo-cms/database/schema";
 import {build, Table} from "@cargo-cms/database";
-import {isDefined} from "@cargo-cms/utils/filters";
+import {isDefined} from "@cargo-cms/utils";
 import {getTableName} from "@cargo-cms/database/schema/utils"
 
 export const constructTables = async (db: knex.Knex, schemas: Schema[]) => {

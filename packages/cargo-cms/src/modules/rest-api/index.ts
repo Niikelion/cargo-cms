@@ -5,9 +5,8 @@ import express from "express";
 import {QueriesModule} from "../queries";
 import qs from "qs";
 import {rest} from "../http-server/utils";
-import {JSONValue} from "@cargo-cms/utils/types";
+import {JSONValue, stringifyZodError} from "@cargo-cms/utils";
 import {HttpServerModule} from "../http-server";
-import {stringifyZodError} from "@cargo-cms/utils/errors";
 
 const selectorType: z.ZodType<SelectorStructure> = z.union([
     z.string(),

@@ -1,7 +1,7 @@
 import {ModuleContext} from "@cargo-cms/modules-core";
 import {TypeRegistryModule} from "../type-registry";
 import {DatabaseModule} from "../database";
-import {JSONValue} from "@cargo-cms/utils/types";
+import {JSONValue} from "@cargo-cms/utils";
 import {RestApiError} from "../http-server/utils";
 
 export const makeInsert = async (ctx: ModuleContext) => {

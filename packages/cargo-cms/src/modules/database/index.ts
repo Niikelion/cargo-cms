@@ -6,8 +6,7 @@ import {constructTable, constructTables} from "./table";
 import {generateStructure, getTableName} from "@cargo-cms/database/schema/utils"
 import {getConfig} from "./config";
 import {removeWithFilter} from "@cargo-cms/database/remove";
-import {isString} from "@cargo-cms/utils/filters";
-import {JSONValue} from "@cargo-cms/utils/types";
+import {isString, JSONValue} from "@cargo-cms/utils";
 import {insert} from "@cargo-cms/database/insert";
 import {DebugModule} from "../debug";
 
@@ -23,12 +22,8 @@ const data = {
         const config = await getConfig(configPath)
 
         const db = knex(config ?? {})
-
         const client = config?.client
-
         const isSqlite = client !== undefined && (client === "sqlite" || (!isString(client) && client.name === "sqlite"))
-
-        console.log({isSqlite})
 
         if (isSqlite)
             await db.raw("PRAGMA foreign_keys = ON").then()

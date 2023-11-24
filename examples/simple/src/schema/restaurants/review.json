@@ -1,0 +1,41 @@
+{
+  "name": "restaurant.review",
+  "type": "entity",
+  "description": {
+    "path": "Review"
+  },
+  "fields": [
+    {
+      "name": "author",
+      "type": "shortText",
+      "constraints": {
+        "required": true
+      },
+      "description": {
+        "path": "Author"
+      }
+    },
+    {
+      "name": "text",
+      "type": "longText",
+      "constraints": {
+        "required": true
+      },
+      "description": {
+        "path": "Text"
+      }
+    },
+    {
+      "name": "restaurant",
+      "type": "relation",
+      "constraints": {
+        "type": "restaurant",
+        "relation": "manyToOne",
+        "field": "reviews"
+      },
+      "description": {
+        "path": "Restaurant"
+      }
+    }
+  ]
+}

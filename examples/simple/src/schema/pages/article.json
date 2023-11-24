@@ -1,0 +1,32 @@
+{
+  "name": "pages.article",
+  "type": "entity",
+  "description": {
+    "path": "Pages/Article",
+    "description": "Blog article",
+    "icon": "file"
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "shortText",
+      "constraints": {},
+      "description": {
+        "path": "Title",
+        "description": "Title of the article"
+      }
+    },
+    {
+      "name": "authors",
+      "type": "relation",
+      "constraints": {
+        "type": "people.author",
+        "relation": "many"
+      },
+      "description": {
+        "path": "Author",
+        "description": "Author of the article"
+      }
+    }
+  ]
+}

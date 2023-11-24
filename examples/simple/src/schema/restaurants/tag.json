@@ -1,0 +1,19 @@
+{
+  "name": "restaurant.tag",
+  "type": "component",
+  "description": {
+    "path": "Tag"
+  },
+  "fields": [
+    {
+      "name": "name",
+      "type": "shortText",
+      "constraints": {
+        "required": true
+      },
+      "description": {
+        "path": "Name"
+      }
+    }
+  ]
+}

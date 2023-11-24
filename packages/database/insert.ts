@@ -12,7 +12,8 @@ type TablePlan = {
 
 type InsertPlan = {
     mainTable: TablePlan,
-    additionalTables: (TablePlan | ((id: number) => InsertPlan))[],
+    tables: TablePlan[]
+    dependentTables: ((id: number) => InsertPlan)[],
     custom: ((db: Knex, id: number) => Promise<void>)[]
 }
 
@@ -30,10 +31,9 @@ const dig = (obj: JSONValue, path: string, separator: string = "/") => {
 }
 
 const extractInsertPlan = (structure: Structure, tableName: string, value: JSONValue): InsertPlan => {
-    console.dir({value})
-
     const paramTables: ((id: number) => InsertPlan)[] = []
     const customInsertions: InsertPlan["custom"] = []
+    let additionalData: Record<string, PrimitiveType> = {}
 
     const { fields, joins } = extractDataFromStructure(structure, {
         onArray: (path, arr) => {
@@ -48,7 +48,7 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
                 return
             }
 
-            const plans: InsertPlan[] = v.map(e => extractInsertPlan(arr, arr.fetch.table, e))
+            const plans: InsertPlan[] = v.map(e => extractInsertPlan({ data: arr.data, joins: arr.joins }, u.table, e))
 
             plans.forEach((plan, i) => {
                 paramTables.push((id: number) => {
@@ -61,31 +61,38 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
                 })
             })
         },
-        onCustomObject: (path, obj) => {
+        onCustomObjectUpload: (path, obj) => {
             const v = dig(value, path)
 
             const u = obj.upload
-            if (u instanceof Function) {
-                customInsertions.push((db, id) => u(db, id, v))
-                return
-            }
 
-            const plan = extractInsertPlan({
-                data: {
-                    type: "object",
-                    fields: obj.fields
-                },
-                joins: obj.joins
-            }, u.table, v)
-
-            paramTables.push((id: number) => {
-                plan.mainTable.data = {
-                    ...plan.mainTable.data,
-                    ...u.getLinkData(id,v)
+            switch (u.type) {
+                case "custom": {
+                    customInsertions.push((db, id) => u.upload(db, id, v))
+                    return
                 }
+                case "inwards": {
+                    const plan = extractInsertPlan({
+                        data: obj,
+                        joins: obj.fetch !== undefined ? obj.joins : {}
+                    }, u.table, v)
 
-                return plan
-            })
+                    paramTables.push((id: number) => {
+                        plan.mainTable.data = {
+                            ...plan.mainTable.data,
+                            ...u.getLinkData(id,v)
+                        }
+
+                        return plan
+                    })
+
+                    return
+                }
+                case "outwards": {
+                    additionalData = Object.assign(additionalData, u.getLinkData(v))
+                    return
+                }
+            }
         },
         onCustom: (path, custom) => {
             customInsertions.push((db: Knex, id: number) => custom.upload(db, id, dig(value, path)))
@@ -115,7 +122,9 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
         tableAliasMapping[alias] = table
     }
 
-    const directFields = data[tableName]
+    const originalData = data[tableName]
+
+    const directFields: Record<string, JSONValue> = originalData ? Object.assign(originalData, additionalData): originalData ?? additionalData
 
     const additionalTables: TablePlan[] = []
 
@@ -141,43 +150,47 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
             name: tableName,
             data: directFields as Record<string, PrimitiveType>
         },
-        additionalTables: [...additionalTables, ...paramTables],
+        tables: additionalTables,
+        dependentTables: paramTables,
         custom: customInsertions
     }
 }
 
-const executeInsertPlan = async (db: Knex, plan: InsertPlan): Promise<number> => {
-    const { mainTable, additionalTables, custom } = plan
+const executeInsertPlan = async (db: Knex, plan: InsertPlan, logSql?: (sql: string) => void): Promise<number> => {
+    const { mainTable, tables, dependentTables, custom } = plan
 
-    const query = db.insert(mainTable.data).into(mainTable.name).returning("_id").onConflict(["_id"]).merge()
+    const mainTask = async () => {
+        const query = db.insert(mainTable.data).into(mainTable.name).returning("_id").onConflict(["_id"]).merge()
 
-    //TODO: hide behind debug utility
-    console.log(query.toSQL().sql)
+        if (logSql)
+            logSql(query.toSQL().sql)
 
-    const ret = await query.then() as { _id: number }[]
+        const ret = await query.then() as { _id: number }[]
 
-    const id = ret[0]._id
+        const id = ret[0]._id
 
-    const additionalTablesTasks= additionalTables.map(async subPlan => {
-        if (subPlan instanceof Function)
-            return await executeInsertPlan(db, subPlan(id))
+        const dependentTablesTasks = dependentTables.map(subPlan => executeInsertPlan(db, subPlan(id), logSql))
 
-        await executeInsertPlan(db, { mainTable: subPlan, additionalTables: [], custom: [] })
-    })
+        const customInsertionsTasks = custom.map(async c => c(db, id))
 
-    const customInsertionsTasks = custom.map(async c => c(db, id))
+        await Promise.all([...dependentTablesTasks, ...customInsertionsTasks])
 
-    await Promise.all([...additionalTablesTasks, ...customInsertionsTasks])
+        return id
+    }
 
+    const [id] = await Promise.all([mainTask(), ...tables.map(async table => {
+        const query = db.insert(table.data).into(table.name).onConflict(["_id"]).merge()
+
+        if (logSql)
+            logSql(query.toSQL().sql)
+
+        return query.then();
+    })])
     return id
 }
 
-export const insert = async (db: Knex, structure: Structure, tableName: string, value: JSONValue): Promise<void> => {
+export const insert = async (db: Knex, structure: Structure, tableName: string, value: JSONValue, logSql?: (sql: string) => void): Promise<number> => {
     const plan = extractInsertPlan(structure, tableName, value)
 
-    console.dir({plan}, {depth: 10})
-
-    const id = await executeInsertPlan(db, plan)
-
-    console.dir({id})
+    return await executeInsertPlan(db, plan, logSql)
 }

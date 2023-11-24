@@ -7,6 +7,7 @@ import {isDefined, isNumber} from "@cargo-cms/utils/filters";
 import {nameGenerator} from "@cargo-cms/utils/generators";
 import assert from "assert";
 import {TypeRegistryModule} from "../type-registry";
+import {DebugModule} from "../debug";
 
 const componentDataPayload = fieldConstraintsSchema.extend({
     type: z.string(),
@@ -41,10 +42,12 @@ const dynamicComponentDataPayload = z.object({
     list: z.boolean().optional(),
 })
 
-export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
+export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule, debug: DebugModule) => {
     const { getComponentType, getEntityType } = typeRegistry
 
-    const componentDataType = validatedDataType("component", componentDataPayload, (table, name, data) => {
+    const logSql = debug.channel("sql").log
+
+    const componentDataType = validatedDataType("component", componentDataPayload, (table, name, data, config) => {
         const type = getComponentType(data.type)
 
         if (type == null)
@@ -54,7 +57,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
 
         // if not using list, simply prefix all fields and add them to current table
         if (!isList)
-            return type.fields.map(field => field.type.generateColumns(table, `${name}_${field.name}`, field.constraints)).filter(isDefined).flat()
+            return type.fields.map(field => field.type.generateColumns(table, `${name}_${field.name}`, field.constraints, config)).filter(isDefined).flat()
 
         //otherwise, create separate table for items with link to current table
         const tableName = `${table.name}__${name}`
@@ -64,7 +67,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         newTable.int("_order")
         newTable.composite(["_entityId", "_order"])
 
-        const tables = type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints)).filter(isDefined).flat()
+        const tables = type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints, config)).filter(isDefined).flat()
 
         return [newTable, ...tables]
     }, ({table, path, data, selector, ...args}) => {
@@ -189,7 +192,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         } as const satisfies Record<Relation, () => Table<string>[] | null>
 
         return relationHandlers[relation]()
-    }, (args) => {
+    }, (args): Structure => {
         const {
             table,
             path,
@@ -202,11 +205,6 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
 
         const isSimpleRelation = relation === "one" || relation === "oneToOne" || relation === "manyToOne"
 
-        //TODO: instead of returning empty object, return depending on relation type
-        if (selector === "**") {
-            return { data: { type: "object", fields: {} }, joins: {} } satisfies Structure
-        }
-
         const type = getEntityType(data.type)
 
         assert(type !== null)
@@ -214,11 +212,25 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         const otherTableName = getTableName(type)
         const otherTableAlias = uuidGenerator()
 
-        const structure = generateStructure(type, selector, { uuidGenerator, tableName: isSimpleRelation ? otherTableAlias : undefined })
+        const follow = selector !== "**"
+
+        const structure = generateStructure(type, follow ? selector : {}, {uuidGenerator, tableName: isSimpleRelation ? otherTableAlias : undefined})
 
         if (isSimpleRelation) {
+
+            assert(structure.data.type === "object")
+
             return {
-                data: structure.data,
+                data: {
+                    ...structure.data,
+                    upload: {
+                        type: "outwards",
+                        getLinkData: value => {
+                            assert(isNumber(value))
+                            return {[path]: value}
+                        }
+                    }
+                },
                 joins: {
                     [otherTableAlias]: {
                         table: otherTableName,
@@ -248,17 +260,14 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                     upload: {
                         table: linkTable,
                         getLinkData: (id, _, v) => {
-                            assert(v !== null && typeof v === "object" && "id" in v)
-                            const index = v["id"]
-                            assert(isNumber(index))
-                            return ({_entityId: id, _targetId: index});
+                            assert(isNumber(v))
+                            return ({_entityId: id, _targetId: v});
                         }
                     }
                 },
                 joins: {}
             } satisfies Structure
         }
-
 
         assert(data.field !== undefined)
 
@@ -271,14 +280,16 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                     fetch: {
                         table: otherTableName,
                         query: (db, id) =>
-                            db(otherTableName).where({ [otherName]: id })
+                            db(otherTableName).where({[otherName]: id})
                     },
                     upload: async (db, id, _, v) => {
-                        assert(v !== null && typeof v === "object" && "id" in v)
-                        const index = v["id"]
-                        assert(isNumber(index))
+                        assert(isNumber(v))
 
-                        db(otherTableName).update({[otherName]: id}).where('_id', index)
+                        const query = db(otherTableName).update({[otherName]: id}).where('_id', v)
+
+                        logSql(query.toSQL().sql)
+
+                        await query.then()
                     }
                 },
                 joins: {}
@@ -286,7 +297,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         }
 
         const t1 = `${table}__${path}`
-        const t2 =  `${otherTableName}__${otherName}`
+        const t2 = `${otherTableName}__${otherName}`
 
         const getNames = () => {
             if (t1 < t2)
@@ -309,10 +320,8 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
                 upload: {
                     table: tableName,
                     getLinkData: (id, _, v) => {
-                        assert(v !== null && typeof v === "object" && "id" in v)
-                        const index = v["id"]
-                        assert(isNumber(index))
-                        return ({[field]: id, [otherField]: index});
+                        assert(isNumber(v))
+                        return ({[field]: id, [otherField]: v});
                     }
                 }
             },
@@ -332,7 +341,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
         return null
     })
 
-    const dynamicComponentDataType = validatedDataType("dynamicComponent", dynamicComponentDataPayload, (table, name, data) => {
+    const dynamicComponentDataType = validatedDataType("dynamicComponent", dynamicComponentDataPayload, (table, name, data, config) => {
         const isList = data.list ?? false
         const c = nameGenerator(name)
 
@@ -346,7 +355,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule) => {
 
             const newTable = build.table(typeTableName)
 
-            const newTables = [newTable, ...type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints)).filter(isDefined).flat()]
+            const newTables = [newTable, ...type.fields.map(field => field.type.generateColumns(newTable, field.name, field.constraints, config)).filter(isDefined).flat()]
 
             newTables.forEach(table => tables.push(table))
         }

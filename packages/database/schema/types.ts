@@ -32,12 +32,21 @@ export type StructureField = {
 } & Structure) | ({
     type: "object",
     fields: { [K in string]: StructureField }
+    upload?: {
+        type: "inwards"
+        table: string,
+        getLinkData: (id: number, value: JSONValue) => Record<string, PrimitiveType>
+    } | {
+        type: "outwards"
+        getLinkData: (value: JSONValue) => Record<string, PrimitiveType>
+    } | {
+        type: "custom"
+        upload: (db: Knex, id: number, value: JSONValue) => Promise<void>
+    }
 } & ({
     fetch?: undefined
-    upload?: undefined
 } | {
     fetch: FieldFetcher
-    upload: { table: string, getLinkData: (id: number, value: JSONValue) => Record<string, PrimitiveType> } | ((db: Knex, id: number, value: JSONValue) => Promise<void>)
     joins: Record<string, TableJoin>
 })) | {
     type: "custom",
@@ -59,10 +68,13 @@ export type StructureGeneratorArgs = {
     uuidGenerator: () => string
 }
 
+export type GenerateColumnsConfig = {
+    depth: number
+}
+
 export type DataType = {
     readonly name: string
-    //TODO: add depth limit to the field generation
-    generateColumns: (table: Table<never>, path: string, data: FieldConstraints) => Table<string>[] | null,
+    generateColumns: (table: Table<never>, path: string, data: FieldConstraints, config?: GenerateColumnsConfig) => Table<string>[] | null,
     generateStructure: (ags: StructureGeneratorArgs) => Structure
     verifyData: (data: FieldConstraints) => string | null
 }

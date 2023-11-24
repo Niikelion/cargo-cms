@@ -17,11 +17,11 @@
       }
     },
     {
-      "name": "author",
+      "name": "authors",
       "type": "relation",
       "constraints": {
         "type": "people.author",
-        "relation": "one"
+        "relation": "many"
       },
       "description": {
         "path": "Author",

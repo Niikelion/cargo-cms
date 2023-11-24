@@ -9,10 +9,13 @@ import {removeWithFilter} from "@cargo-cms/database/remove";
 import {isString} from "@cargo-cms/utils/filters";
 import {JSONValue} from "@cargo-cms/utils/types";
 import {insert} from "@cargo-cms/database/insert";
+import {DebugModule} from "../debug";
 
 const err = () => {
     throw new Error("Database not initialized")
 }
+
+let logSql: ((sql: string) => void) | undefined = undefined
 
 const data = {
     raw: null as knex.Knex | null,
@@ -45,17 +48,17 @@ const data = {
     async query(schema: Schema, selector: SelectorStructure, args?: Omit<QueryByStructureAdditionalArgs, "query">) {
         if (data.raw === null)
             return err()
-        return await queryByStructure(data.raw, generateStructure(schema, selector), getTableName(schema), args)
+        return await queryByStructure(data.raw, generateStructure(schema, selector), getTableName(schema), {...args, logSql})
     },
     async remove(schema: Schema, selector: SelectorStructure, filter: FilterType) {
         if (data.raw === null)
             return err()
-        return await removeWithFilter(data.raw, generateStructure(schema, selector), getTableName(schema), filter)
+        return await removeWithFilter(data.raw, generateStructure(schema, selector), getTableName(schema), filter, logSql)
     },
     async insert(schema: Schema, value: JSONValue) {
         if (data.raw === null)
             return err()
-        return await insert(data.raw, generateStructure(schema, "**"), getTableName(schema), value)
+        return await insert(data.raw, generateStructure(schema, "**"), getTableName(schema), value, logSql)
     },
     async finish(): Promise<void> {
         if (data.raw === null)
@@ -64,7 +67,12 @@ const data = {
     }
 }
 
-const databaseModule = makeModule("database", {}, data)
+const databaseModule = makeModule("database", {
+    async init(ctx) {
+        const debug = await ctx.require<DebugModule>("debug")
+        logSql = debug?.channel("sql")?.log
+    }
+}, data)
 
 export type DatabaseModule = typeof databaseModule
 export default databaseModule

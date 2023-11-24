@@ -10,7 +10,8 @@ export type QueryByStructureAdditionalArgs = {
     query?: Knex.QueryBuilder,
     filter?: FilterType,
     sort?: SortType[],
-    limit?: number
+    limit?: number,
+    logSql?: (sql: string) => void
 }
 
 export const queryByStructure = async (db: Knex, structure: Structure, tableName: string, args?: QueryByStructureAdditionalArgs): Promise<JSONValue[]> => {
@@ -53,8 +54,8 @@ export const queryByStructure = async (db: Knex, structure: Structure, tableName
     if (sort !== undefined)
         applySort(query, sort, fields)
 
-    //TODO: hide behind debug utility
-    console.log(query.toSQL().sql)
+    if (args?.logSql)
+        args.logSql(query.toSQL().sql)
 
     const results: (Record<string, PrimitiveType> & {id: number})[] = await query.then()
 

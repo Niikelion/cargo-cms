@@ -1,7 +1,7 @@
 import knex from "knex";
 import schemaInspector from 'knex-schema-inspector';
 import {Schema} from "@cargo-cms/database/schema";
-import {build, Field, Table} from "@cargo-cms/database";
+import {build, Table} from "@cargo-cms/database";
 import {isDefined} from "@cargo-cms/utils/filters";
 import {getTableName} from "@cargo-cms/database/schema/utils"
 

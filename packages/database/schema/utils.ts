@@ -1,7 +1,7 @@
 import {z} from "zod";
 import {
     DataType,
-    FieldConstraints, NestedRecord, PrimitiveType,
+    FieldConstraints, GenerateColumnsConfig, NestedRecord, PrimitiveType,
     Schema,
     SelectorStructure,
     Structure,
@@ -17,7 +17,7 @@ export const getTableName = (schema: Schema) => schema.name.replace(".", "_")
 
 export const validatedDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string, payloadValidator: z.ZodType<Payload, PayloadDef>,
-    generateColumns: (table: Table<never>, path: string, data: Payload) => Table<string>[] | null,
+    generateColumns: (table: Table<never>, path: string, data: Payload, config?: GenerateColumnsConfig) => Table<string>[] | null,
     generateStructure: (args: Omit<StructureGeneratorArgs, "data"> & { data: Payload }) => Structure,
     verifier?: (data: Payload) => string | null
 ) => ({
@@ -33,8 +33,14 @@ export const validatedDataType = <Payload extends NonNullable<FieldConstraints>,
 
         return null
     },
-    generateColumns(table, path, data) {
-        return generateColumns(table, path.replace(".", "_"), data as Payload)
+    generateColumns(table, path, data, config) {
+        const c = Object.assign({}, config)
+        if (c.depth !== undefined) {
+            --c.depth
+            if (c.depth < 0)
+                throw new Error("Type too deep")
+        }
+        return generateColumns(table, path.replace(".", "_"), data as Payload, c)
     },
     generateStructure(args) {
         const { data, path, ...rest} = args

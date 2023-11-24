@@ -10,7 +10,7 @@ import {
     queriesModule,
     httpServerModule,
     databaseModule,
-    restApiModule
+    restApiModule, debugModule
 } from "../modules"
 
 const root = path.resolve(process.cwd())
@@ -18,6 +18,7 @@ const root = path.resolve(process.cwd())
 const useServer = false
 
 const builtInModules: Module[] = [
+    debugModule,
     typeRegistryModule,
     commonModule,
     schemaLoaderModule,
@@ -80,12 +81,12 @@ const main = async () => {
             //     sort: [ "name" ]
             // })
             // console.dir(res, {depth: 10})
-            await queriesModule.insert("restaurant", {
-                name: "Test2",
-                reviews: [],
-                tags: [ { name: "Bad" } ]
+            await queriesModule.delete("pages.article", { title: { "!eq": "Test2" } })
+            const insertedId = await queriesModule.insert("pages.article", {
+                title: "Test2",
+                authors: [1]
             })
-            await queriesModule.delete("restaurant", { name: { "!eq": "Test2" } })
+            console.log({id: insertedId})
         }
 
     } finally {

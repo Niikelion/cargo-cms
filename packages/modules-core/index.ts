@@ -2,6 +2,8 @@ export type ModuleContext = {
     register(m: Module): void
     init(): Promise<void>
     cleanup(): Promise<void>
+    import<T extends Module>(name: T["__type"]): Promise<T | undefined>
+    importMany: <T extends [...Module[]]>(...names: { [K in keyof T]: T[K]["__type"] }) => Promise<{ [K in keyof T]: T[K] | undefined }>
     require<T extends Module>(name: T["__type"]): Promise<T>
     requireMany: <T extends [...Module[]]>(...names: { [K in keyof T]: T[K]["__type"] }) => Promise<T>
 }
@@ -22,6 +24,10 @@ function requireMany<T extends [...Module[]]>(...names: { [K in keyof T]: T[K]["
     return Promise.all(names.map(modules.require)) as Promise<T>
 }
 
+function importMany<T extends [...Module[]]>(...names: { [K in keyof T]: T[K]["__type"] }): Promise<{ [K in keyof T]: T[K] | undefined }> {
+    return Promise.all(names.map(modules.import)) as Promise<{ [K in keyof T]: T[K] | undefined }>
+}
+
 export const modules: ModuleContext = {
     register(m: Module) {
         if (m.__type in registeredModules)
@@ -38,15 +44,24 @@ export const modules: ModuleContext = {
 
         await Promise.all(moduleList.map(m => m.cleanup()))
     },
-    async require<T extends Module>(name: string): Promise<T> {
+    async import<T extends Module>(name: T["__type"]): Promise<T | undefined> {
         if (!(name in registeredModules))
-            throw new Error(`Module ${name} not found`)
+            return undefined
+
         const module = registeredModules[name]
         await module.initialization
 
         return module as T
     },
-    requireMany: requireMany as ModuleContext["requireMany"]
+    async require<T extends Module>(name: T["__type"]): Promise<T> {
+        const module = await modules.import<T>(name)
+
+        if (!module)
+            throw new Error(`Module ${name} not found`)
+        return module
+    },
+    importMany: importMany as ModuleContext["importMany"],
+    requireMany: requireMany as ModuleContext["requireMany"],
 }
 
 export const makeModule = <Type extends string, Extension extends object>(name: Type, methods: Partial<Pick<Module, "init" | "cleanup">>, extension: Extension): Module<Type, Extension> => {

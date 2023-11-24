@@ -5,7 +5,7 @@
   "author": "Michal Osinski <michal.osinski101@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "build": "npm --workspace cargo-cms run build"
+    "build": "npm run build --workspaces --if-present"
   },
   "workspaces": [
     "packages/*",

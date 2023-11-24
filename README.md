@@ -24,7 +24,7 @@ but closer to first full release it will be tested on more databases.
 
 ## License
 
-As of now, `Cargo` is under `MIT` license,
+As of now, `Cargo` is under [MIT](LICENSE) license,
 for you to use completely free of charge in private and commercial products,
 and it won't be changed retroactively.
 

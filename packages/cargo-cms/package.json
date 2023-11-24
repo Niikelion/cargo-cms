@@ -3,15 +3,18 @@
   "version": "0.0.1",
   "main": "src/index.ts",
   "license": "MIT",
+  "index": "src/index.ts",
   "bin": {
     "cargo-cms": "./bin/cargo-cms.js"
   },
   "files": [
-    "./bin"
+    "./bin",
+    "./dist"
   ],
   "scripts": {
     "gen.version": "genversion --es6 src/version.ts",
-    "dev": "ts-node-esm src/index.ts"
+    "dev": "ts-node-esm src/index.ts",
+    "build": "tsc"
   },
   "dependencies": {
     "@cargo-cms/database": "*",

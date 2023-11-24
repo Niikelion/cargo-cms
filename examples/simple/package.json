@@ -4,7 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "cross-env CARGO_DEV=true cargo-cms"
+    "dev": "cross-env CARGO_DEV=true cargo-cms",
+    "dev:built": "cargo-cms"
   },
   "dependencies": {
     "cargo-cms": "*",

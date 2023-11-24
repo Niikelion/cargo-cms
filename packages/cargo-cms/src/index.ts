@@ -1,4 +1,4 @@
-import {readSchema} from "../modules/schema-loader/reader";
+import {readSchema} from "./modules/schema-loader/reader";
 import * as path from "path";
 import {modules, Module} from "@cargo-cms/modules-core";
 import {
@@ -11,7 +11,7 @@ import {
     httpServerModule,
     databaseModule,
     restApiModule, debugModule
-} from "../modules"
+} from "./modules"
 
 const root = path.resolve(process.cwd())
 

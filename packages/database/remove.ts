@@ -2,7 +2,7 @@ import {Knex} from "knex";
 import {FilterType, Structure} from "./schema";
 import {applyFields, applyFilters, applyJoins, extractDataFromStructure} from "./utils";
 
-export const removeWithFilter = async (db: Knex, structure: Structure, tableName: string, filter: FilterType, logSql?: (sql: string) => void): Promise<void> => {
+export const removeWithFilter = async (db: Knex, structure: Structure, tableName: string, filter: FilterType, logSql?: (sql: string) => void): Promise<number> => {
     const query: Knex.QueryBuilder = db(tableName)
 
     const { fields, joins } = extractDataFromStructure(structure)
@@ -18,5 +18,5 @@ export const removeWithFilter = async (db: Knex, structure: Structure, tableName
     if (logSql)
         logSql(query.toSQL().sql)
 
-    await query.then()
+    return await query.then()
 }

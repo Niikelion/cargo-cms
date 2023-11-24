@@ -4,6 +4,9 @@
   "repository": "git@github.com:Niikelion/cargo-cms.git",
   "author": "Michal Osinski <michal.osinski101@gmail.com>",
   "license": "MIT",
+  "scripts": {
+    "build": "npm --workspace cargo-cms run build"
+  },
   "workspaces": [
     "packages/*",
     "packages/modules/*",

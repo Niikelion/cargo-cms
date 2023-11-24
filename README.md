@@ -34,4 +34,4 @@ but as it is only a POC I'm not sure what will be the exact terms of future lice
 ## Contributing
 
 Right now I'm only accepting issues,
-as unit tests and github pipelines are not currently set up.
+as unit tests and GitHub pipelines are not currently set up.

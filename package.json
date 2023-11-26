@@ -8,8 +8,10 @@
     "build": "npm run build --workspaces --if-present"
   },
   "workspaces": [
-    "packages/*",
-    "packages/modules/*",
+    "packages/modules-core",
+    "packages/utils",
+    "packages/database",
+    "packages/cargo-cms",
     "examples/*"
   ],
   "private": true

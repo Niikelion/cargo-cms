@@ -67,7 +67,7 @@ export const applyJoins = (query: Knex.QueryBuilder, joins: Joins): void => {
 }
 
 export const applyFields = (db: Knex, query: Knex.QueryBuilder, fields: Fields) => {
-    Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(".", "/")])))
+    Object.entries(fields).forEach(([path, id]) => query.select(db.raw('?? as ??', [id, path.replace(/\./g, "/")])))
 }
 
 type Q = Knex.QueryBuilder

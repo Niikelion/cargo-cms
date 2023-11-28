@@ -81,12 +81,29 @@ const main = async () => {
             //     sort: [ "name" ]
             // })
             // console.dir(res, {depth: 10})
-            await queriesModule.delete("pages.article", { title: { "!eq": "Test2" } })
-            const insertedId = await queriesModule.insert("pages.article", {
-                title: "Test2",
-                authors: [1]
+            // await queriesModule.delete("pages.article", { title: { "!eq": "Test2" } })
+            // const insertedId = await queriesModule.insert("pages.article", {
+            //     title: "Test2",
+            //     authors: [1]
+            // })
+            // console.log({id: insertedId})
+            await queriesModule.delete("dynamic.Parent", {})
+            await queriesModule.insert("dynamic.Parent", {
+                list: [
+                    {
+                        dynamic_A: {
+                            name: "A"
+                        }
+                    },
+                    {
+                        dynamic_B: {
+                            title: "B"
+                        }
+                    }
+                ]
             })
-            console.log({id: insertedId})
+            const res = await queriesModule.get("dynamic.Parent", {list: "**"}, {})
+            console.dir({res}, {depth: 10})
         }
 
     } finally {

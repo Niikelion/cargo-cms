@@ -1,0 +1,18 @@
+{
+  "name": "dynamic.B",
+  "type": "component",
+  "description": {
+    "path": "Dynamic/B"
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "shortText",
+      "constraints": {},
+      "description": {
+        "path": "Title",
+        "description": ""
+      }
+    }
+  ]
+}

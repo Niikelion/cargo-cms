@@ -107,7 +107,7 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
         const table = pathParts[0]
         const member = pathParts[1]
 
-        //TODO: iterate object and generate structure this way instead of iterating table fields
+        //MAYBE: iterate object and generate structure this way instead of iterating table fields
         const v = dig(value, name, "/")
 
         data[table] ??= {}
@@ -135,7 +135,6 @@ const extractInsertPlan = (structure: Structure, tableName: string, value: JSONV
 
         const filter = (e: [string, JSONValue]): e is [string, PrimitiveType] => isPrimitive(e[1])
 
-        //TODO: maybe refine value using custom handlers?
         const finalData = Object.fromEntries(Object.entries(data[name]).filter(filter))
 
         additionalTables.push({

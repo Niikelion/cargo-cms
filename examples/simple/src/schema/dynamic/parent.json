@@ -1,0 +1,21 @@
+{
+  "name": "dynamic.Parent",
+  "type": "entity",
+  "description": {
+    "path": "Dynamic/Parent"
+  },
+  "fields": [
+    {
+      "name": "list",
+      "type": "dynamicComponent",
+      "constraints": {
+        "types": ["dynamic.A", "dynamic.B"],
+        "list": true
+      },
+      "description": {
+        "path": "List",
+        "description": ""
+      }
+    }
+  ]
+}

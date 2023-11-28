@@ -11,7 +11,7 @@ import {stringifyZodError, isArray, isBool, isDefined, isNumber, isString, JSONV
 import {Field, Table} from "@cargo-cms/database";
 import assert from "assert";
 
-export const getTableName = (schema: Schema) => schema.name.replace(".", "_")
+export const getTableName = (schema: Schema) => schema.name.replace(/\./g, "_")
 
 export const validatedDataType = <Payload extends NonNullable<FieldConstraints>, PayloadDef extends z.ZodTypeDef>(
     name: string, payloadValidator: z.ZodType<Payload, PayloadDef>,
@@ -38,12 +38,12 @@ export const validatedDataType = <Payload extends NonNullable<FieldConstraints>,
             if (c.depth < 0)
                 throw new Error("Type too deep")
         }
-        return generateColumns(table, path.replace(".", "_"), data as Payload, c)
+        return generateColumns(table, path.replace(/\./g, "_"), data as Payload, c)
     },
     generateStructure(args) {
         const { data, path, ...rest} = args
 
-        return generateStructure({...rest, data: data as Payload, path: path.replace(".", "_")})
+        return generateStructure({...rest, data: data as Payload, path: path.replace(/\./g, "_")})
     }
 } satisfies DataType)
 

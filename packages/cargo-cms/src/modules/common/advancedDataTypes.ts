@@ -392,24 +392,41 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule, debu
         const newTableName = `${table}__${path}`
 
         const typeData: Record<string, {
+            name: string
             table: string
             alias: string
+            structure: StructureField & {type: "object"}
         }> = {}
 
         for (const type of types) {
-            const subSelector = descendSelector(selector, type.name)
+            const tn = type.name.replace(/\./g, '_')
+
+            const subSelector = descendSelector(selector, tn)
 
             if (subSelector == null)
                 continue
 
-            const typeTableName = `${newTableName}__${type.name.replace(/\./g, '_')}`
+
+            const typeTableName = `${newTableName}__${tn}`
             const typeTableAlias = uuidGenerator()
-            typeData[type.name] = {
+
+            const subStructureForUpload = generateStructure(type, subSelector, {uuidGenerator, tableName: typeTableName})
+
+            assert(subStructureForUpload.data.type === "object")
+
+            typeData[tn] = {
+                name: type.name,
                 table: typeTableName,
-                alias: typeTableAlias
+                alias: typeTableAlias,
+                structure: subStructureForUpload.data
             }
 
             const subStructure = generateStructure(type, subSelector, {uuidGenerator, tableName: typeTableAlias})
+
+            joins[typeTableAlias] = {
+                table: typeTableName,
+                build: (builder) => builder
+            }
 
             assert(subStructure.data.type == "object")
 
@@ -426,7 +443,8 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule, debu
                 fetch: async (db, id) => {
                     const ret: {order: number, [k: string]: JSONValue}[] = []
                     for (const type of types) {
-                        const {table: typeTableName, alias: typeTableAlias} = typeData[type.name]
+                        const tn = type.name.replace(/\./g, '_')
+                        const {table: typeTableName, alias: typeTableAlias, structure} = typeData[tn]
 
                         const query = db(newTableName)
                             .select()
@@ -445,7 +463,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule, debu
                                         type: "number",
                                         id: `${newTableName}._order`
                                     },
-                                    [type.name.replace(/\./g, '_')]: fields[type.name.replace(/\./g, "_")]
+                                    [tn]: fields[tn]
                                 }
                             },
                             joins: {}
@@ -467,24 +485,55 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule, debu
 
                         const [type, v] = entries[0]
 
+                        assert(!isArray(v) && !isPrimitive(v))
+
+                        const field = typeData[type].structure
+
+                        const data = typeData[type]
+
                         await insert(db, {
                             data: {
                                 type: "object",
-                                fields: { [type]: fields[type] }
+                                fields: {
+                                    _entityId: {
+                                        type: "number",
+                                        id: `${newTableName}._entityId`
+                                    },
+                                    _order: {
+                                        type: "number",
+                                        id: `${newTableName}._order`
+                                    },
+                                    _type: {
+                                        type: "number",
+                                        id: `${newTableName}._type`
+                                    },
+                                    [type]: {
+                                        type: "object",
+                                        fields: field.fields,
+                                        upload: {
+                                            type: "inwards",
+                                            table: data.table,
+                                            getLinkData(id, v) {
+                                                assert(!isPrimitive(v) && !isArray(v))
+                                                return {...v, _entryId: id}
+                                            }
+                                        }
+                                    } satisfies StructureField
+                                }
                             },
-                            joins: {}
-                        }, newTableName, {...item, _order: i}, logSql)
+                            joins
+                        }, newTableName, {_entityId: id, _order: i, _type: data.name, [type]: v}, logSql)
                     }))
                 }
             },
-            joins: {}
+            joins
         } satisfies Structure
     }, data => {
-        const types = data.types.map(type => [type, getEntityType(type)])
+        const types = data.types.map(type => [type, getComponentType(type)])
 
         for (const [typeName, typeValue] of types)
             if (typeValue === null)
-                return `Missing entity type: ${typeName}`
+                return `Missing component type: ${typeName}`
 
         return null
     })

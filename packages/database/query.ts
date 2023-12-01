@@ -2,8 +2,8 @@ import assert from "assert";
 import {Knex} from "knex";
 import {Structure, PrimitiveType, FilterType, SortType} from "./schema";
 import {unFlattenStructure} from "./schema/utils";
-import {JSONValue, isArray, isDefined, isPrimitive} from "@cargo-cms/utils"
-import {applyFields, applyFilters, applyJoins, applySort, extractDataFromStructure} from "./utils";
+import {JSONValue, isArray, isDefined, isPrimitive, withComputation} from "@cargo-cms/utils"
+import {applyFields, applyFilters, applyJoins, applySort, extractDataFromStructure, ExtractHandlers} from "./utils";
 
 export type QueryByStructureAdditionalArgs = {
     query?: Knex.QueryBuilder,
@@ -12,6 +12,8 @@ export type QueryByStructureAdditionalArgs = {
     limit?: number,
     logSql?: (sql: string) => void
 }
+
+type CustomObjectHandler = NonNullable<ExtractHandlers["onCustomObject"]>
 
 export const queryByStructure = async (db: Knex, structure: Structure, tableName: string, args?: QueryByStructureAdditionalArgs): Promise<JSONValue[]> => {
     type Handler = (db: Knex, id: number) => Promise<JSONValue>
@@ -26,14 +28,14 @@ export const queryByStructure = async (db: Knex, structure: Structure, tableName
     const pushCustom = (path: string, handler: Handler) => customs.push([path, handler])
 
     const { fields, joins } = extractDataFromStructure(structure, {
-        onCustomObject: (path, obj) => pushCustom(path, (db, id) => {
+        onCustomObject: withComputation<CustomObjectHandler>(undefined, (path, obj) => pushCustom(path, async (db, id) => {
             const tableName = obj.fetch.table
             const query = obj.fetch.query(db, id)
             return queryByStructure(db, {
                 data: obj,
                 joins: obj.joins
             }, tableName, { query })
-        }),
+        })),
         onArray: (path, array) => pushCustom(path, (db, id) => {
             const tableName = array.fetch.table
             const query = array.fetch.query(db, id)

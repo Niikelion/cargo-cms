@@ -4,9 +4,9 @@ import {isArray, isDefined, isString, JSONValue} from "@cargo-cms/utils";
 
 type ObjWithUpload = StructureField & { type: "object" } & Required<Pick<StructureField & {type: "object"}, "upload">>
 
-type ExtractHandlers = {
-    onCustomObject?: (path: string, obj: StructureField & { type: "object", fetch: FieldFetcher }) => void
-    onCustomObjectUpload?: (path: string, obj: ObjWithUpload) => void
+export type ExtractHandlers = {
+    onCustomObject?: (path: string, obj: StructureField & { type: "object", fetch: FieldFetcher }) => true | void
+    onCustomObjectUpload?: (path: string, obj: ObjWithUpload) => true | void
     onArray?: (path: string, array: StructureField & { type: "array" }) => void
     onCustom?: (path: string, custom: StructureField & { type: "custom" }) => void
 }
@@ -26,15 +26,13 @@ export const extractDataFromStructure = (structure: Structure, handlers?: Extrac
         switch (s.type) {
             case "string": case "number": case "boolean": fields[path] = s.id; break
             case "object": {
-                if (s.upload !== undefined)
-                    if (handlers?.onCustomObjectUpload)
-                        handlers.onCustomObjectUpload(path, s as ObjWithUpload)
+                if (handlers?.onCustomObjectUpload && s.upload !== undefined)
+                    if (handlers.onCustomObjectUpload(path, s as ObjWithUpload))
+                        break
 
-                if (s.fetch !== undefined) {
-                    if (handlers?.onCustomObject)
-                        handlers.onCustomObject(path, s)
-                    break
-                }
+                if (handlers?.onCustomObject && s.fetch !== undefined)
+                    if (handlers.onCustomObject(path, s))
+                        break
 
                 Object.entries(s.fields).forEach(([name, field]) => {
                     extractData(path.length > 0 ? `${path}.${name}` : name, field)

@@ -444,7 +444,7 @@ export const registerAdvancedDataTypes = (typeRegistry: TypeRegistryModule, debu
                     const ret: {order: number, [k: string]: JSONValue}[] = []
                     for (const type of types) {
                         const tn = type.name.replace(/\./g, '_')
-                        const {table: typeTableName, alias: typeTableAlias, structure} = typeData[tn]
+                        const {table: typeTableName, alias: typeTableAlias} = typeData[tn]
 
                         const query = db(newTableName)
                             .select()

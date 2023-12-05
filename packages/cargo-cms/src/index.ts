@@ -1,6 +1,7 @@
 import {readSchema} from "./modules/schema-loader/reader";
 import * as path from "path";
 import {modules, Module} from "@cargo-cms/modules-core";
+import {cwd, stdin} from "process"
 import {
     typeRegistryModule,
     ComponentType,
@@ -13,7 +14,7 @@ import {
     restApiModule, debugModule
 } from "./modules"
 
-const root = path.resolve(process.cwd())
+const root = path.resolve(cwd())
 
 const useServer = false
 
@@ -67,7 +68,7 @@ const main = async () => {
             await httpServerModule.start(3000)
 
             await new Promise<void>(resolve => {
-                process.stdin.resume()
+                stdin.resume()
                 const end = () => resolve()
 
                 process.on('exit', end)

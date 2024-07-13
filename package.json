@@ -10,6 +10,7 @@
   "workspaces": [
     "packages/modules-core",
     "packages/utils",
+    "packages/schema",
     "packages/database",
     "packages/cargo-cms",
     "examples/*"

@@ -1,0 +1,19 @@
+{
+  "name": "@cargo-cms/schema",
+  "version": "1.0.0",
+  "license": "MIT",
+  "files": [
+    "./dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@cargo-cms/utils": "*",
+    "knex": "^3.1.0",
+    "zod": "^3.22.4"
+  }
+}

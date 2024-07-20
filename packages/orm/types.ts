@@ -17,7 +17,7 @@ export type RelationFieldSchema = {
     bidirectional: true
     targetField: {
         multiple: boolean
-        name: string
+        path: string
     }
 })
 

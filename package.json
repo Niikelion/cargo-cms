@@ -8,9 +8,9 @@
     "build": "npm run build --workspaces --if-present"
   },
   "workspaces": [
-    "packages/modules-core",
     "packages/utils",
-    "packages/schema",
+    "packages/orm",
+    "packages/modules-core",
     "packages/database",
     "packages/cargo-cms",
     "examples/*"

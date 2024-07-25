@@ -2,20 +2,22 @@
   "name": "@cargo-cms/orm",
   "version": "1.0.0",
   "license": "MIT",
-  "files": [
-    "./dist"
-  ],
-  "exports": {
-    ".": "./dist/index.js"
-  },
+  "main": "./src/index.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@cargo-cms/utils": "*",
     "@types/md5": "^2.3.5",
+    "json-diff-ts": "^4.0.1",
     "knex": "^3.1.0",
     "md5": "^2.3.0",
-    "zod": "^3.22.4"
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "sqlite3": "^5.1.7",
+    "vitest": "^2.0.3"
   }
 }

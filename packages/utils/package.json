@@ -11,7 +11,7 @@
     "./generators": "./dist/generators.js"
   },
   "scripts": {
-    "build": "tsc"
+    "tmp-build": "tsc"
   },
   "dependencies": {
     "zod": "^3.22.4"

@@ -9,7 +9,6 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc"
-  },
-  "dependencies": {}
+    "tmp-build": "tsc"
+  }
 }

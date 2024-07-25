@@ -1,19 +1,21 @@
 {
-  "name": "cargo-cms-project",
+  "name": "cargo-cms",
+  "packageManager": "yarn@4.3.1",
   "version": "1.0.0",
   "repository": "git@github.com:Niikelion/cargo-cms.git",
   "author": "Michal Osinski <michal.osinski101@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "build": "npm run build --workspaces --if-present"
+    "build": "turbo build",
+    "test": "turbo test --force"
   },
   "workspaces": [
-    "packages/utils",
-    "packages/orm",
-    "packages/modules-core",
-    "packages/database",
-    "packages/cargo-cms",
+    "packages/*",
     "examples/*"
   ],
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "turbo": "^2.0.9",
+    "typescript": "^5.5.3"
+  }
 }

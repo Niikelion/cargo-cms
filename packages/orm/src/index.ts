@@ -1,3 +1,5 @@
+export * from "./utils"
+export * from "./schema"
+export * from "./operations"
 export * from "./types"
 export * from "./knex"
-export * from "./utils";

@@ -130,8 +130,11 @@ const RAW_RUNTIME_STATE =
           ["@types/node", "npm:20.14.11"],\
           ["json-diff-ts", "npm:4.0.1"],\
           ["knex", "virtual:3f014d12a39d8ff8503e252078070839342b5406a0c4112f29e398a3058f81ebc36f39236886b20041d8e859332e04100b3d29be30ee550b44bb25e9358b9e4d#npm:3.1.0"],\
+          ["knex-schema-inspector", "https://github.com/Niikelion/knex-schema-inspector.git#commit=ee34075da6b70036eba2325e645b45dbc8ddeefa"],\
           ["md5", "npm:2.3.0"],\
+          ["moment", "npm:2.30.1"],\
           ["sqlite3", "virtual:80da4499f7890b1b7091576addb2ddc162549d3c7993cc265c2d1112b7ef9081e34a508f80134b7b2bad1cb1126762c528f4c87f3a32f47296379eea05c5d55c#npm:5.1.7"],\
+          ["typescript", "patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"],\
           ["vitest", "virtual:3f014d12a39d8ff8503e252078070839342b5406a0c4112f29e398a3058f81ebc36f39236886b20041d8e859332e04100b3d29be30ee550b44bb25e9358b9e4d#npm:2.0.3"],\
           ["zod", "npm:3.23.8"]\
         ],\
@@ -3454,6 +3457,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["moment", [\
+      ["npm:2.30.1", {\
+        "packageLocation": "../../../C:/Users/nicra/AppData/Local/Yarn/Berry/cache/moment-npm-2.30.1-1c51a5c631-10c0.zip/node_modules/moment/",\
+        "packageDependencies": [\
+          ["moment", "npm:2.30.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["ms", [\
       ["npm:2.0.0", {\
         "packageLocation": "../../../C:/Users/nicra/AppData/Local/Yarn/Berry/cache/ms-npm-2.0.0-9e1101a471-10c0.zip/node_modules/ms/",\
@@ -5002,6 +5014,13 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../C:/Users/nicra/AppData/Local/Yarn/Berry/cache/typescript-patch-9fde7bec60-10c0.zip/node_modules/typescript/",\
         "packageDependencies": [\
           ["typescript", "patch:typescript@npm%3A5.5.3#optional!builtin<compat/typescript>::version=5.5.3&hash=379a07"]\
+        ],\
+        "linkType": "HARD"\
+      }],\
+      ["patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07", {\
+        "packageLocation": "../../../C:/Users/nicra/AppData/Local/Yarn/Berry/cache/typescript-patch-fe43cd9db9-10c0.zip/node_modules/typescript/",\
+        "packageDependencies": [\
+          ["typescript", "patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"]\
         ],\
         "linkType": "HARD"\
       }]\

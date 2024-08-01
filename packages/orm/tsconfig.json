@@ -1,8 +1,7 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "incremental": true,
-    "target": "es2017",
-    "module": "NodeNext",
     "rootDir": "./src",
     "moduleResolution": "NodeNext",
     "declaration": true,

@@ -48,7 +48,7 @@ export type DatabaseDriver = {
      * @param entityName
      * @param options
      */
-    update(entityName: string, options: UpdateOptions): Promise<{id: number}[]>
+    update(entityName: string, options: UpdateOptions): Promise<void>
     /**
      * Deletes entries from database using given filter.
      * @param entityName

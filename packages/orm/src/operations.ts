@@ -16,15 +16,14 @@ export type ComparisonOperationFilterType =
     | { $in: PrimitiveType[] }
     | { $between: [PrimitiveType, PrimitiveType] }
 
-export type OperationFilterType =
+export type CombineOperationFilterType =
     | { $not: FilterType }
     | { $and: FilterType[] }
     | { $or: FilterType[] }
-    | ComparisonOperationFilterType
 
 export type FilterType =
     | { [k: string]: ComparisonOperationFilterType }
-    | OperationFilterType
+    | CombineOperationFilterType
 
 export type SortType = string[] | string
 

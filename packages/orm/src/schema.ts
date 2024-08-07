@@ -23,7 +23,7 @@ export type PrimitiveFieldSchema = z.infer<typeof PrimitiveFieldSchema>
 export const RelationFieldSchema = z.intersection(z.object({
     type: z.literal("relation"),
     target: z.string(),
-    multiple: z.boolean()
+    multiple: z.boolean() // describes whether we expect other end to have multiple entries
 }), z.union([
     z.object({
         bidirectional: z.literal(false),
@@ -31,7 +31,7 @@ export const RelationFieldSchema = z.intersection(z.object({
     z.object({
         bidirectional: z.literal(true),
         targetField: z.object({
-            multiple: z.boolean(),
+            multiple: z.boolean(), // describes whether other end expects us to
             path: z.string()
         })
     })

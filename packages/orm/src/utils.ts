@@ -1,7 +1,7 @@
 import {TypesSchema} from "./schema";
 
 
-import {FilterType, OperationFilterType} from "./operations";
+import {FilterType, CombineOperationFilterType} from "./operations";
 
 const {applyChangeset, diff} = require("json-diff-ts")
 
@@ -34,23 +34,13 @@ export function isBoolean(v: any): v is number { return typeof v === 'boolean' |
 export function isArray(v: any): v is any[] { return Array.isArray(v) || v instanceof Array }
 export function isObject(v: Json): v is { [k: string]: Json } { return !isString(v) && !isNumber(v) && !isBoolean(v) && !isArray(v) }
 
-export const FilterOperations = [
+export const CombineFilterOperations = [
     "$not",
     "$and",
-    "$or",
-    "$eq",
-    "$neq",
-    "$lt",
-    "$lte",
-    "$gt",
-    "$gte",
-    "$like",
-    "$null",
-    "$in",
-    "$between"
+    "$or"
 ] as const
 
-export function isOperationFilter(v: FilterType): v is OperationFilterType {
+export function isCombinedOperationFilter(v: FilterType): v is CombineOperationFilterType {
     if (!isObject(v)) return false
 
     const keys = Object.keys(v)
@@ -58,5 +48,5 @@ export function isOperationFilter(v: FilterType): v is OperationFilterType {
     if (keys.length !== 1) return false
 
     const [key] = keys
-    return FilterOperations.includes(key as typeof FilterOperations[number])
+    return CombineFilterOperations.includes(key as typeof CombineFilterOperations[number])
 }

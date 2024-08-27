@@ -1,6 +1,6 @@
 //export type ResponseSelector = true | string | { [k: string]: ResponseSelector } | (string | { [k: string]: ResponseSelector })[]
 import {PrimitiveType} from "./schema";
-import {Json} from "./utils";
+import {Json, JsonObject} from "./utils";
 
 export type ResponseSelector = true | { [k: string]: ResponseSelector }
 
@@ -31,7 +31,7 @@ export type OperationUpdateType =
     | { $set: PrimitiveType }
     | { $insert: {
         at: number,
-        value: Json
+        value: JsonObject
     } }
     | { $delete: number }
 

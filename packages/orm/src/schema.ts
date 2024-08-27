@@ -62,6 +62,7 @@ export type ObjectSchema = {
     type: "object",
     fields: Record<string, DataSchema>
 } & GenericProperties
+//TODO: support object type discriminated unions
 export const DataSchema = z.union([
     FieldSchema, ArraySchema, ObjectSchema
 ])

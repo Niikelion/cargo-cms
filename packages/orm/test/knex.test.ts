@@ -1,5 +1,4 @@
 import {describe, expect, test} from "vitest"
-import fs from "fs/promises"
 import {DatabaseDriver, DataSchema, diffSchema, KnexDriver, ResponseSelector, schemaEquals, TypesSchema} from "../src";
 
 type DriverFactory = () => Promise<DatabaseDriver>
@@ -7,14 +6,15 @@ type DriverFactory = () => Promise<DatabaseDriver>
 const driversData: {factory: DriverFactory, name: string}[] = [
     {
         name: "knex sqlite",
-        factory: async () => {
-            await fs.rm("./test/db.sqlite", {force: true})
-            return new KnexDriver({
-                client: "sqlite3",
-                connection: {filename: "./test/db.sqlite"},
-                useNullAsDefault: true
-            })
-        }
+        factory: async () => new KnexDriver({
+            client: "sqlite3",
+            connection: ':memory:',
+            useNullAsDefault: true,
+            pool: {
+                min: 1,
+                max: 1
+            }
+        })
     }
 ]
 
@@ -220,7 +220,7 @@ describe.each(drivers)(`knex database driver for $driverName`, async ({createDri
         })
         expect(filtered5).toEqual([idA])
 
-        const  filtered6 = await driver.query("user", {
+        const filtered6 = await driver.query("user", {
             selector: true,
             filter: {"bio": {$neq: "short bio"}},
             sort: ["id+"]
@@ -268,15 +268,113 @@ describe.each(drivers)(`knex database driver for $driverName`, async ({createDri
         })
         expect(filtered2).toEqual([blogPostA])
     })
-    dbTest.todo('sorting', async ({}) => {})
+    dbTest.todo('sorting', async ({driver}) => {
+        await driver.applySchema(simpleSchema)
+
+        //TODO
+    })
     dbTest.todo('deletes', async ({driver}) => {
         await driver.applySchema(simpleSchema)
 
-        //
+        //TODO
     })
-    dbTest.todo('updates', async ({driver}) => {
+    dbTest('updates', async ({driver}) => {
         await driver.applySchema(complexSchema)
 
-        //
+        const userIdA = await driver.insert("user", {
+            name: "a",
+            password: "***",
+            verified: true,
+            bio: "some bio",
+            level: 1,
+            balance: 0,
+            tags: [{name: "user"}]
+        })
+
+        const userIdB = await driver.insert("user", {
+            name: "b",
+            password: "***",
+            verified: true,
+            bio: "some bio",
+            level: 1,
+            balance: 0,
+            tags: [{name: "admin"}]
+        })
+
+        const blogPostIdA = await driver.insert("blogPost", {
+            author: userIdB.id
+        })
+
+        // set simple field
+        await driver.update("user", {
+            operations: {
+                "password": {$set: "insecure"}
+            },
+            filter: {id: {$eq: userIdA.id}}
+        })
+
+        const updatedUser = await driver.query("user", {
+            selector: true, filter: {id: {$eq: userIdA.id}}
+        })
+        expect(updatedUser).toEqual([userIdA])
+
+        // set single field relation
+        await driver.update("blogPost", {
+            operations: {
+                "author": {$set: userIdA.id}
+            }
+        })
+
+        const updatedBlogPost = await driver.query("blogPost", {
+            selector: {
+                author: true
+            }
+        })
+
+        expect(updatedBlogPost).toEqual([{...blogPostIdA, author: userIdA}])
+
+        // don't allow updates through relations
+        await expect(driver.update("blogPost", {
+            operations: {"author.name": {$set: "new name"}},
+            filter: {"id": {$eq: blogPostIdA.id}}
+        })).rejects.toThrow()
+
+        //TODO: handle multiple relations
+
+        // insert into array
+        await driver.update("user", {
+            operations: {
+                "tags": {
+                    $insert: {
+                        at: 0, value: {name: "user"}
+                    }
+                }
+            },
+            filter: {id: {$eq: userIdB.id}}
+        })
+        const updatedUserTags = await driver.query("user", {
+            selector: { tags: { name: true } },
+            filter: {id: {$eq: userIdB.id}}
+        })
+        expect(updatedUserTags, `Expect tag "user" to be inserted at position 0`).toEqual([{
+            ...userIdB, tags: [{name: "user"}, {name: "admin"}]
+        }])
+
+        //delete from array
+        await driver.update("user", {
+            operations: {
+                "tags": {
+                    $delete: 1
+                }
+            },
+            filter: {id: {$eq: userIdB.id}}
+        })
+        const updatedUserTags2 = await driver.query("user", {
+            selector: { tags: { name: true } },
+            filter: {id: {$eq: userIdB.id}}
+        })
+        expect(updatedUserTags2, `Expect tag at position 1 to be deleted`).toEqual([{
+            ...userIdB, tags: [{name: "user"}]
+        }])
     })
 })

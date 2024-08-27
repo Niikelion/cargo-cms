@@ -1,4 +1,5 @@
 import {FieldFetcher, Structure, StructureField, TableJoin} from "./types";
+import {Knex} from "knex";
 
 type Joins = Record<string, TableJoin>
 type SimpleType = StructureField & { type: "string" | "number" | "boolean" }
@@ -22,6 +23,15 @@ export const structureBuilder = {
             id: dbPath
         } satisfies SimpleType
     },
+    string(dbPath: string): SimpleType {
+        return structureBuilder.simpleType("string", dbPath)
+    },
+    number(dbPath: string): SimpleType {
+        return structureBuilder.simpleType("number", dbPath)
+    },
+    boolean(dbPath: string): SimpleType {
+        return structureBuilder.simpleType("boolean", dbPath)
+    },
     array(elementType: StructureField, args: {
         joins?: Joins,
         fetch: FieldFetcher,
@@ -37,7 +47,7 @@ export const structureBuilder = {
     },
     object(fields: Record<string, StructureField>, args?: {
         upload?: ObjectType["upload"]
-        fetch: FieldFetcher
+        fetch?: FieldFetcher
         joins?: Joins
     }): ObjectType {
         if (args === undefined)
@@ -81,5 +91,18 @@ export const structureBuilder = {
             type: "custom",
             ...args
         } satisfies CustomType
+    },
+    wrapStructureWithArray(elementStructure: Structure, args: {
+        joins?: Joins,
+        fetch: FieldFetcher,
+        upload: ArrayType["upload"]
+    }) {
+        return structureBuilder.array(elementStructure.data, {
+            joins: Object.assign(elementStructure.joins, args.joins ?? {}),
+            fetch: args.fetch,
+            upload: args.upload
+        })
     }
 }
+
+export const dummyFetch: FieldFetcher = { table: "", query: (db: Knex, id: number): Knex.QueryBuilder => db() } as const

@@ -5,7 +5,7 @@ import {generateStructure, getTableName, validatedDataType} from "@cargo-cms/dat
 import assert from "assert";
 import {build} from "@cargo-cms/database";
 import {Table} from "@cargo-cms/database";
-import {Structure} from "@cargo-cms/database/schema";
+import {Structure, structureBuilder} from "@cargo-cms/database/schema";
 import {isNumber} from "@cargo-cms/utils";
 import {DebugModule} from "../../debug";
 
@@ -112,21 +112,18 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
         const structure = generateStructure(type, follow ? selector : {}, {uuidGenerator, tableName: isSimpleRelation ? otherTableAlias : undefined})
 
         if (isSimpleRelation) {
-
             assert(structure.data.type === "object")
 
             return {
                 data: {
                     ...structure.data,
-                    upload: {
-                        type: "outwards",
-                        getLinkData: value => {
-                            assert(isNumber(value))
-                            return {[path]: value}
-                        }
-                    }
+                    upload: structureBuilder.objectUploadOut(value => {
+                        assert(isNumber(value))
+                        return {[path]: value}
+                    })
                 },
                 joins: {
+                    ...structure.joins,
                     [otherTableAlias]: {
                         table: otherTableName,
                         build: query =>
@@ -134,8 +131,7 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
                                 `${otherTableName} AS ${otherTableAlias}`,
                                 `${table}.${path}`,
                                 `${otherTableAlias}._id`)
-                    },
-                    ...structure.joins
+                    }
                 }
             } satisfies Structure
         }
@@ -143,14 +139,14 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
         if (relation === "many") {
             const linkTable = `${table}__${path}`
 
-            return {
-                data: {
-                    type: "array",
-                    ...structure,
+            return structureBuilder.structure(structureBuilder.wrapStructureWithArray(
+                structure,
+                {
                     fetch: {
                         table: otherTableName,
                         query: (db, id) =>
-                            db(linkTable).where({_entityId: id}).leftJoin(otherTableName, `${linkTable}._targetId`, `${otherTableName}._id`)
+                            db(linkTable).where({_entityId: id})
+                                .leftJoin(otherTableName, `${linkTable}._targetId`, `${otherTableName}._id`)
                     },
                     upload: {
                         table: linkTable,
@@ -159,19 +155,17 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
                             return ({_entityId: id, _targetId: v});
                         }
                     }
-                },
-                joins: {}
-            } satisfies Structure
+                }
+            ))
         }
 
         assert(data.field !== undefined)
 
         const otherName = data.field
         if (relation === "oneToMany") {
-            return {
-                data: {
-                    type: "array",
-                    ...structure,
+            return structureBuilder.structure(structureBuilder.wrapStructureWithArray(
+                structure,
+                {
                     fetch: {
                         table: otherTableName,
                         query: (db, id) =>
@@ -186,9 +180,8 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
 
                         await query.then()
                     }
-                },
-                joins: {}
-            } satisfies Structure
+                }
+            ))
         }
 
         const t1 = `${table}__${path}`
@@ -203,10 +196,9 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
 
         const [tableName, field, otherField] = getNames()
 
-        return {
-            data: {
-                type: "array",
-                ...structure,
+        return structureBuilder.structure(structureBuilder.wrapStructureWithArray(
+            structure,
+            {
                 fetch: {
                     table: otherTableName,
                     query: (db, id) =>
@@ -219,9 +211,8 @@ export const registerRelationDataType = (typeRegistry: TypeRegistryModule, debug
                         return ({[field]: id, [otherField]: v});
                     }
                 }
-            },
-            joins: {}
-        } satisfies Structure
+            }
+        ))
     }, data => {
         const type = getEntityType(data.type)
 

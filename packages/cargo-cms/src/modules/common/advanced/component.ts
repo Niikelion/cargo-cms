@@ -5,7 +5,7 @@ import {descendSelector, validatedDataType} from "@cargo-cms/database/schema/uti
 import {isDefined} from "@cargo-cms/utils";
 import {build} from "@cargo-cms/database";
 import {nameGenerator} from "@cargo-cms/utils/generators";
-import {Structure, StructureField} from "@cargo-cms/database/schema";
+import {Structure, structureBuilder, StructureField} from "@cargo-cms/database/schema";
 
 const componentDataPayload = fieldConstraintsSchema.extend({
     type: z.string(),
@@ -71,35 +71,35 @@ export const registerComponentDataType = (typeRegistry: TypeRegistryModule) => {
                     })
                 });
             }).filter(isDefined)
+
             subStructures.forEach(structure => {
                 fields[structure.field.name] = structure.structure.data
                 Object.entries(structure.structure.joins).forEach(([name, value]) =>
                     joins[name] = value)
             })
 
-            const componentStructure = {
-                data: {
-                    type: "object", fields
-                }, joins
-            } satisfies Structure
+            const componentStructure = structureBuilder.object(fields)
 
             if (!isList)
-                return componentStructure
+                return structureBuilder.structure(componentStructure, joins)
 
-            return {
-                data: {
-                    type: "array",
-                    fetch: {
-                        table: tableName,
-                        query: (db, id) => db(tableName).where({_entityId: id}).orderBy("_order", "asc", "last")
-                    },
-                    upload: {
-                        table: tableName,
-                        getLinkData: (id, i) => ({_entityId: id, _order: i})
-                    },
-                    ...componentStructure
-                }, joins: {}
-            } satisfies Structure
+            return structureBuilder.structure(
+                structureBuilder.array(
+                    componentStructure,
+                    {
+                        joins,
+                        fetch: {
+                            table: tableName,
+                            query: (db, id) => db(tableName).where({_entityId: id}).orderBy("_order", "asc", "last")
+                        },
+                        upload: {
+                            table: tableName,
+                            getLinkData: (id, i) => ({_entityId: id, _order: i})
+                        }
+                    }
+                ),
+                joins
+            )
         },
         data => {
             const type = getComponentType(data.type)

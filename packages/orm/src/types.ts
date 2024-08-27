@@ -1,6 +1,9 @@
-import {Diff, Json} from "./utils";
+import {Diff, Json, JsonObject} from "./utils";
 import {TypesSchema} from "./schema";
 import {DeleteOptions, QueryOptions, UpdateOptions} from "./operations";
+
+export type EntityResponseBase = { id: number }
+export type EntityResponse = JsonObject & EntityResponseBase
 
 export type DatabaseDriver = {
     /**
@@ -36,13 +39,13 @@ export type DatabaseDriver = {
      * @param entityName
      * @param options
      */
-    query(entityName: string, options: QueryOptions): Promise<Json[]>
+    query(entityName: string, options: QueryOptions): Promise<EntityResponse[]>
     /**
      * Inserts single entry into database.
      * @param entityName
      * @param data
      */
-    insert(entityName: string, data: Json): Promise<{id: number}>
+    insert(entityName: string, data: Json): Promise<EntityResponseBase>
     /**
      * Updates entries specified by filter by performing operations specified in update.
      * @param entityName
@@ -54,6 +57,6 @@ export type DatabaseDriver = {
      * @param entityName
      * @param options
      */
-    delete(entityName: string, options: DeleteOptions): Promise<{id: number}[]>
+    delete(entityName: string, options: DeleteOptions): Promise<EntityResponseBase[]>
 }
 

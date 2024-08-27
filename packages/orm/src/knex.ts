@@ -1,42 +1,38 @@
-import {
-    DatabaseDriver
-} from "./types";
+import {DatabaseDriver, EntityResponse, EntityResponseBase} from "./types";
 import knex, {Knex} from "knex";
 import md5 from "md5"
 import * as assert from "assert";
 import {
-    applyDiffToTypeSchema, Diff,
+    applyDiffToTypeSchema,
+    Diff,
     isArray,
     isBoolean,
+    isCombinedOperationFilter,
     isNumber,
     isObject,
-    isCombinedOperationFilter,
     isString,
-    Json
+    Json,
+    JsonObject
 } from "./utils";
 import {
     ArraySchema,
-    DataSchema, FieldType, GenericProperties,
-    ObjectSchema, PrimitiveFieldSchema,
+    DataSchema,
+    FieldType,
+    GenericProperties,
+    ObjectSchema,
+    PrimitiveFieldSchema,
     PrimitiveType,
     RelationFieldSchema,
     TypeSchema,
     TypesSchema
 } from "./schema";
-import {
-    DeleteOptions,
-    FilterType,
-    QueryOptions,
-    ResponseSelector,
-    SortType,
-    UpdateOptions
-} from "./operations";
+import {DeleteOptions, FilterType, QueryOptions, ResponseSelector, SortType, UpdateOptions} from "./operations";
 import moment, {ISO_8601} from "moment";
 import schemaInspector from 'knex-schema-inspector';
 import {ForeignKey} from "knex-schema-inspector/dist/types/foreign-key";
 import {Column} from "knex-schema-inspector/dist/types/column";
 
-export type TableField = (PrimitiveFieldSchema | ({
+export type TableField = (PrimitiveFieldSchema | ({ type: "index" } & Omit<PrimitiveFieldSchema, "type">) | ({
     type: "link",
     target: string
 } & GenericProperties))
@@ -180,6 +176,7 @@ function flattenSchema(sourceTableName: string, path: string, schema: DataSchema
             }
 
             enrichedSchema = { ...schema, tableName: sourceTableName, fields: enrichedFields }
+            fields["id"] = { type: "index" }
             break
         }
         case "array": {
@@ -199,7 +196,7 @@ function flattenSchema(sourceTableName: string, path: string, schema: DataSchema
                 name: linkTableName,
                 fields: {
                     parentId: { type: "link", target: sourceTableName },
-                    elementId: { type: "link", target: arrayTableName },
+                    elementId: { type: "link", target: arrayTableName, unique: true },
                     order: { type: "integer" }
                 }
             }
@@ -236,7 +233,7 @@ function flattenSchema(sourceTableName: string, path: string, schema: DataSchema
             additionalTables[linkTableName] = {
                 name: linkTableName,
                 fields: {
-                    [sourceField]: {type: "link", target: sourceTableName},
+                    [sourceField]: {type: "link", target: sourceTableName, unique: shouldExpectSingleTarget(schema)},
                     [targetField]: {type: "link", target: targetTableName}
                 }
             }
@@ -385,6 +382,7 @@ function getTypeForField(schema: TableField): string {
     switch (schema.type) {
         case "link":
         case "integer":
+        case "index":
             return "integer"
         case "text":
             return "text"
@@ -532,9 +530,6 @@ export class KnexDriver implements DatabaseDriver {
         const exists = tableSchema.name in this.currentSchema
 
         const tableCallback = (builder: Knex.CreateTableBuilder) => {
-            if (!exists)
-                builder.increments("id")
-
             for (const [key, value] of Object.entries(tableSchema.fields)) {
                 const makeColumn = (): Knex.ColumnBuilder => {
                     switch (value.type) {
@@ -545,8 +540,11 @@ export class KnexDriver implements DatabaseDriver {
                         case "link":
                         case "integer": return builder.integer(key)
                         case "float": return builder.double(key)
+                        case "index": return builder.increments(key)
                     }
                 }
+
+                if (exists && value.type === "index") continue
 
                 let column = makeColumn()
 
@@ -778,9 +776,7 @@ export class KnexDriver implements DatabaseDriver {
         query.orderBy(sortList)
     }
 
-    private async queryBySchema(schema: EnrichedObjectSchema, options: QueryByStructureOptions): Promise<Json[]> {
-        const db = this.getDb()
-
+    private async queryBySchema(schema: EnrichedObjectSchema, options: QueryByStructureOptions, transaction: Knex.Transaction): Promise<EntityResponse[]> {
         const {
             filter,
             sort,
@@ -846,6 +842,7 @@ export class KnexDriver implements DatabaseDriver {
                         targetField: "id",
                         targetAlias: secondJoinAlias
                     })
+                    tableFields.push({ path: extendPath(path, "id"), field: "id", table: secondJoinAlias, type: "integer" })
 
                     return recursiveFieldExtract(path, {...targetSchema, tableName: secondJoinAlias}, selector)
                 case "object":
@@ -858,12 +855,12 @@ export class KnexDriver implements DatabaseDriver {
 
         recursiveFieldExtract("", schema, selector)
 
-        const query = db.from(schema.tableName).select(tableFields.map(f =>
-            db.raw("?? as ??", [`${f.table}.${f.field}`, escapePath(f.path)]))).select(`${schema.tableName}.id`)
+        const query = transaction.from(schema.tableName).select(tableFields.map(f =>
+            transaction.raw("?? as ??", [`${f.table}.${f.field}`, escapePath(f.path)]))).select(`${schema.tableName}.id`)
 
         const joinedTables = new Set<string>()
         for (const join of joins) {
-            query.join({[join.targetAlias]: join.targetTable}, `${join.sourceTable}.${join.sourceField}`, `${join.targetAlias}.id`)
+            query.join({[join.targetAlias]: join.targetTable}, `${join.sourceTable}.${join.sourceField}`, `${join.targetAlias}.${join.targetField}`)
             joinedTables.add(join.targetAlias)
         }
 
@@ -873,14 +870,14 @@ export class KnexDriver implements DatabaseDriver {
         if (filter !== undefined) this.applyFilter(query, schema, filter, joinedTables)
         if (sort !== undefined) this.applySort(query, schema, sort, joinedTables)
 
-        const responses = await query.then<({ id: number } & Record<string, PrimitiveType | null>)[]>()
+        const responses = await query.then<(EntityResponseBase & Record<string, PrimitiveType | null>)[]>()
 
-        const results: Json[] = []
+        const results: EntityResponse[] = []
 
         for (const response of responses) {
             const { id } = response
 
-            const result: Json = { id }
+            const result: EntityResponse = { id }
 
             for (const field of tableFields) {
                 const rawValue = response[escapePath(field.path)]
@@ -895,9 +892,10 @@ export class KnexDriver implements DatabaseDriver {
                     queryLinker: (query) =>
                         query
                             .innerJoin(field.schema.tableName, `${field.schema.tableName}.elementId`, `${field.schema.elements.tableName}.id`)
-                            .where(`${field.schema.tableName}.parentId`, `=`, id),
+                            .where(`${field.schema.tableName}.parentId`, `=`, id)
+                            .orderBy(`${field.schema.tableName}.order`, 'asc'),
                     selector: field.selector
-                }) as ({id: number} & Record<string, Json>)[]
+                }, transaction)
 
                 const values = array.map(({id, ...rest}) => rest)
 
@@ -915,7 +913,7 @@ export class KnexDriver implements DatabaseDriver {
                             `${targetSchema.tableName}.id`)
                         .where(`${field.schema.tableName}.${field.schema.fieldName}`, `=`, id),
                     selector: field.selector
-                })
+                }, transaction)
 
                 setByPath(result, field.path, singleResult ? array[0] ?? null : array)
             }
@@ -925,10 +923,7 @@ export class KnexDriver implements DatabaseDriver {
 
         return results
     }
-    //TODO: work out how to do transaction
-    private async insertBySchema(schema: EnrichedObjectSchema, value: Json): Promise<{id: number}[]> {
-        const db = this.getDb()
-
+    private async insertBySchema(schema: EnrichedObjectSchema, value: Json, transaction: Knex.Transaction): Promise<EntityResponseBase> {
         assert.ok(isObject(value))
 
         const obj: Record<string, PrimitiveType | null> = {}
@@ -967,23 +962,23 @@ export class KnexDriver implements DatabaseDriver {
 
         extractFields(schema, value)
 
-        let [id] = await db(schema.tableName).insert(obj).returning("id")
+        let [id] = await transaction(schema.tableName).insert(obj).returning("id")
         if (!isNumber(id))
             id = id.id
 
         for (const field of arrayFields) {
             const {elements} = field.schema
 
-            const elementIds: { id: number }[] = []
+            const elementIds: EntityResponseBase[] = []
 
             for (const element of field.value) {
-                const [r] = await this.insertBySchema(elements, element)
+                const r = await this.insertBySchema(elements, element, transaction)
                 elementIds.push(r)
             }
 
             if (elementIds.length === 0) continue
 
-            await db(field.schema.tableName).insert(elementIds.map((e, i) => ({
+            await transaction(field.schema.tableName).insert(elementIds.map((e, i) => ({
                 parentId: id,
                 elementId: e.id,
                 order: i
@@ -993,25 +988,45 @@ export class KnexDriver implements DatabaseDriver {
         for (const relation of relations) {
             if (relation.ids.length === 0) continue
 
-            await db(relation.table).insert(relation.ids.map(linkedId => ({
+            await transaction(relation.table).insert(relation.ids.map(linkedId => ({
                 [relation.sourceField]: id,
                 [relation.targetField]: linkedId
             })))
         }
 
-        return [{id}]
+        return {id}
     }
-    //TODO: somehow handle transactions
-    private async updateBySchema(schema: EnrichedObjectSchema, options: UpdateOptions) {
-        const db = this.getDb()
-
-        const { operations, filter } = options
-        //TODO: joins can be separate, construct them for sets and perform them in transaction
+    private async updateBySchema(schema: EnrichedObjectSchema, options: UpdateOptions, transaction: Knex.Transaction) {
+        const {operations, filter} = options
         const tableSets = new Map<string, {
             tableName: string
             data: Record<string, PrimitiveType>
             join: (query: Knex.QueryBuilder) => void
         }>()
+        const singleRelations: {
+            data: Record<string, any>
+            tableName: string
+            idFieldName: string
+            selectParentId: (q: Knex.QueryBuilder) => void
+        }[] = []
+
+        type ArrayInsert = {
+            type: "insert",
+            tableName: string
+            data: Record<string, Json>
+            join: (query: Knex.QueryBuilder) => void
+            selectParentId: (query: Knex.QueryBuilder) => void
+            index: number
+            schema: EnrichedObjectSchema
+        }
+        type ArrayDelete = {
+            type: "delete",
+            tableName: string
+            join: (query: Knex.QueryBuilder) => void
+            index: number
+        }
+        type ArrayOperation = ArrayInsert | ArrayDelete
+        const arrayOperations: (ArrayOperation)[] = []
 
         for (const path in operations) {
             const operation = operations[path]
@@ -1049,11 +1064,10 @@ export class KnexDriver implements DatabaseDriver {
                         currentSchema = currentSchema.elements
                         break
                     }
-                    case "relation": {
-                        //TODO: do
-                        throw new Error("Unsupported")
-                    }
-                    default: throw new Error("Cannot update subfield of primitive value")
+                    case "relation":
+                        throw new Error("Cannot update related entity")
+                    default:
+                        throw new Error("Cannot update subfield of primitive value")
                 }
 
                 currentPath = extendPath(currentPath, part)
@@ -1064,12 +1078,26 @@ export class KnexDriver implements DatabaseDriver {
                 lastSchema = prevSchema
             }
 
-            if (currentSchema.type === "object" || currentSchema.type === "array")
-                throw new Error("Cannot set object or array")
-            if (currentSchema.type === "relation")
-                throw new Error("Setting relations not supported yet")
-
             if ("$set" in operation) {
+                if (currentSchema.type === "object" || currentSchema.type === "array")
+                    throw new Error("Cannot set object or array")
+
+                if (currentSchema.type === "relation") {
+                    if (shouldExpectSingleTarget(currentSchema)) {
+                        assert.ok(isNumber(operation.$set))
+                        singleRelations.push({
+                            data: {
+                                [currentSchema.targetFieldName]: operation.$set
+                            },
+                            idFieldName: currentSchema.fieldName,
+                            tableName: currentSchema.tableName,
+                            selectParentId: q => currentJoin(q.select(`${lastSchema.tableName}.id`).from(`${lastSchema.tableName}`)),
+                        })
+                        continue
+                    }
+                    throw new Error("Multiple target relations cannot be set, only modified")
+                }
+
                 if (!tableSets.has(parentPath)) tableSets.set(parentPath, {
                     tableName: currentSchema.tableName,
                     data: {},
@@ -1078,49 +1106,158 @@ export class KnexDriver implements DatabaseDriver {
 
                 const table = tableSets.get(parentPath)!
                 table.data[currentSchema.fieldName] = operation.$set
+                continue
             }
+            if ("$insert" in operation) {
+                if (currentSchema.type !== "array")
+                    throw new Error("Inserts are only supported in arrays")
+
+                arrayOperations.push({
+                    type: "insert",
+                    data: operation.$insert.value,
+                    index: operation.$insert.at,
+                    tableName: currentSchema.tableName,
+                    join: q =>
+                        currentJoin(q.leftJoin(lastSchema.tableName, `${lastSchema.tableName}.id`, `${currentSchema.tableName}.parentId`)),
+                    schema: currentSchema.elements,
+                    selectParentId: q => currentJoin(q.select(`${lastSchema.tableName}.id`).from(`${lastSchema.tableName}`)),
+                })
+
+                continue
+            }
+            if ("$delete" in operation) {
+                if (currentSchema.type !== "array")
+                    throw new Error("Deletes are only supported in arrays")
+
+                arrayOperations.push({
+                    type: "delete",
+                    index: operation.$delete,
+                    tableName: currentSchema.tableName,
+                    join: q =>
+                        currentJoin(q.leftJoin(lastSchema.tableName, `${lastSchema.tableName}.id`, `${currentSchema.tableName}.parentId`))
+                })
+                continue
+            }
+            throw new Error("Unsupported update operation")
         }
 
         const that = this
 
         for (const set of tableSets.values()) {
-            const query = db(set.tableName).update(set.data)
-            query.whereIn(`${set.tableName}.id`, function() {
-                const q = this.select(`${set.tableName}.id`).from(set.tableName)
-                set.join(q);
-                if (filter) that.applyFilter(q, schema, filter)
-            })
+            await transaction(set.tableName)
+                .update(set.data)
+                .whereIn(`${set.tableName}.id`, function () {
+                    const q = this.select(`${set.tableName}.id`).from(set.tableName)
+                    set.join(q);
+                    if (filter) that.applyFilter(q, schema, filter)
+                }).then()
+        }
 
-            await query.then()
+        const entries = await this.queryBySchema(schema, {selector: true, filter}, transaction)
+
+        assert.ok(entries.every((e): e is JsonObject & { id: number } => isObject(e) && "id" in e && isNumber(e.id)))
+        for (const entry of entries) {
+            for (const relation of singleRelations) {
+                await transaction(relation.tableName)
+                    .insert({
+                        ...relation.data,
+                        [relation.idFieldName]: function () { relation.selectParentId(this.andWhere(`${schema.tableName}.id`, `=`, entry.id)) }
+                    })
+                    .onConflict(relation.idFieldName)
+                    .merge()
+            }
+
+            for (const operation of arrayOperations) {
+                switch (operation.type) {
+                    case "insert": {
+                        const { id: itemId } = await this.insertBySchema(operation.schema, operation.data, transaction)
+                        //move items after inserted
+                        await transaction(operation.tableName)
+                            .update({ order: transaction.raw(`?? + 1`, [transaction.ref("order")]) })
+                            .whereIn(`${operation.tableName}.elementId`, function () {
+                                const q = this.select(`${operation.tableName}.elementId`).from(operation.tableName)
+                                operation.join(q);
+                                q.andWhere(`${operation.tableName}.order`, `>=`, operation.index).andWhere(`${schema.tableName}.id`, `=`, entry.id)
+                            }).then()
+                        await transaction(operation.tableName)
+                            .insert({
+                                order: operation.index,
+                                parentId: function () { operation.selectParentId(this.andWhere(`${schema.tableName}.id`, `=`, entry.id)) },
+                                elementId: itemId
+                            })
+                        break
+                    }
+                    case "delete": {
+                        await transaction(operation.tableName)
+                            .delete()
+                            .whereIn(`${operation.tableName}.elementId`, function () {
+                                const q = this.select(`${operation.tableName}.elementId`).from(operation.tableName)
+                                operation.join(q);
+                                q.andWhere(`${operation.tableName}.order`, `=`, operation.index).andWhere(`${schema.tableName}.id`, `=`, entry.id)
+                            }).then()
+                        await transaction(operation.tableName)
+                            .update({ order: transaction.raw(`?? - 1`, [transaction.ref("order")]) })
+                            .whereIn(`${operation.tableName}.elementId`, function () {
+                                const q = this.select(`${operation.tableName}.elementId`).from(operation.tableName)
+                                operation.join(q);
+                                q.andWhere(`${operation.tableName}.order`, `>`, operation.index).andWhere(`${schema.tableName}.id`, `=`, entry.id)
+                            }).then()
+                        break
+                    }
+                }
+            }
         }
     }
 
-    async query(entityName: string, options: QueryOptions): Promise<Json[]> {
-        this.getDb() // ensure db is accessible
+    async query(entityName: string, options: QueryOptions): Promise<EntityResponseBase[]> {
+        const db = this.getDb() // ensure db is accessible
         const entitySchema = this.getEntitySchema(entityName)
 
-        return await this.queryBySchema(entitySchema, options)
+        const transaction = await db.transaction()
+        try {
+            const result = await this.queryBySchema(entitySchema, options, transaction)
+            await transaction.commit()
+            return result
+        } catch (e) {
+            transaction.rollback(e)
+            throw e
+        }
     }
-    async insert(entityName: string, data: Json): Promise<{id: number}> {
-        this.getDb()
+    async insert(entityName: string, data: Json): Promise<EntityResponseBase> {
+        const db = this.getDb()
 
         const entitySchema = this.getEntitySchema(entityName)
 
         if (!validateDataShape(entitySchema, data))
             throw new Error("Data does not match the schema")
 
-        const [ result ] = await this.insertBySchema(entitySchema, data)
+        const transaction = await db.transaction()
 
-        return result
+        try {
+            const result = await this.insertBySchema(entitySchema, data, transaction)
+            await transaction.commit()
+            return result
+        } catch (e) {
+            await transaction.rollback(e)
+            throw e
+        }
     }
     async update(entityName: string, options: UpdateOptions): Promise<void> {
-        this.getDb()
+        const db = this.getDb()
 
         const entitySchema = this.getEntitySchema(entityName)
 
-        await this.updateBySchema(entitySchema, options)
+        const transaction = await db.transaction()
+
+        try {
+            await this.updateBySchema(entitySchema, options, transaction)
+            await transaction.commit()
+        } catch (e) {
+            await transaction.rollback(e)
+            throw e
+        }
     }
-    async delete(entityName: string, options: DeleteOptions): Promise<{id: number}[]> {
+    async delete(entityName: string, options: DeleteOptions): Promise<EntityResponseBase[]> {
         const db = this.getDb()
         const entitySchema = this.getEntitySchema(entityName)
 
@@ -1131,6 +1268,6 @@ export class KnexDriver implements DatabaseDriver {
         if (filter !== undefined)
             this.applyFilter(query, entitySchema, filter)
 
-        return query.then<{ id: number }[]>()
+        return query.then<EntityResponseBase[]>()
     }
 }

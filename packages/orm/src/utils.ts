@@ -26,7 +26,10 @@ export function diffSchema(source: TypesSchema, target: TypesSchema): boolean {
     return diff(source, target)
 }
 
-export type Json = string | number | boolean | null | Json[] | { [k: string]: Json }
+export type JsonObject = { [k: string]: Json }
+export type JsonArray = Json[]
+export type JsonValue = string | number | boolean | null
+export type Json = JsonValue | JsonArray | JsonObject
 
 export function isString(v: any): v is string { return typeof v === 'string' || v instanceof String }
 export function isNumber(v: any): v is number { return typeof v === 'number' || v instanceof Number }

@@ -8,7 +8,7 @@ const {applyChangeset, diff} = require("json-diff-ts")
 export type Diff = ReturnType<typeof diff>
 
 export function applyDiffToTypeSchema(source: TypesSchema, changes: Diff): TypesSchema {
-    const target = applyChangeset(source, changes)
+    const target = applyChangeset(structuredClone(source), changes)
 
     const parsedTarget = TypesSchema.safeParse(target)
 

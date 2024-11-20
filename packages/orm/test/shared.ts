@@ -92,7 +92,7 @@ export const setupDriversTest = (drivers: DriverData[]) => {
             const changes = diffSchema({}, simpleSchema)
             await driver.applySchemaDelta(changes)
             const schema = await driver.getCurrentSchema()
-            expect(schemaEquals(schema, simpleSchema)).toBe(true)
+            expect(schema).toEqual(simpleSchema)
             await driver.performIntegrityCheck()
         })
         dbTest('complex schema, apply schema and perform insert, query, delete and update operations', async ({driver}) => {

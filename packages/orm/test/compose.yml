@@ -1,0 +1,8 @@
+services:
+  mongo:
+    image: mongo
+    ports:
+      - "20000:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: cargo
+      MONGO_INITDB_ROOT_PASSWORD: cargo

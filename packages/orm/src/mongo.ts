@@ -20,7 +20,7 @@ const escapeMongoName = (name: string) => name.replace(/\./g, "#")
 export class MongoDriver implements DatabaseDriver {
     private readonly config: MongoDriverConfig
     private client: MongoClient | null = null
-    private db: Db | null = null
+    private _db: Db | null = null
     private schemas: TypesSchema = {}
     private schemaCollection: Collection<SchemaEntry> | null = null
 
@@ -32,13 +32,10 @@ export class MongoDriver implements DatabaseDriver {
         const client = new MongoClient(this.config.mongoUrl, this.config.clientOptions)
         this.client = await client.connect()
 
-        const db = this.getDb()
-
-        this.schemaCollection = await db.createCollection<SchemaEntry>("@schema", {})
+        this.schemaCollection = await this.db.createCollection<SchemaEntry>("@schema", {})
         this.schemas = await this.getSchemasFromDb()
     }
     async performIntegrityCheck(): Promise<void> {
-        const db = this.getDb()
         const existingSchemas = await this.getSchemasFromDb()
 
         const result = TypesSchema.safeParse(existingSchemas)
@@ -59,7 +56,7 @@ export class MongoDriver implements DatabaseDriver {
             if (!this.config.disableCollectionSchemaChecks) {
                 const mongoSchema = cargoToMongoSchema(schema)
 
-                const collection = db.collection(escapeMongoName(typeName))
+                const collection = this.db.collection(escapeMongoName(typeName))
                 const mismatchCount = await collection.countDocuments({$nor: [mongoSchema]})
 
                 if (mismatchCount > 0)
@@ -76,19 +73,18 @@ export class MongoDriver implements DatabaseDriver {
 
         await this.client.close()
         this.client = null
-        this.db = null
+        this._db = null
     }
     async applySchema(types: TypesSchema): Promise<void> {
-        const db = this.getDb()
         const schemaCollection = this.getSchemaCollection()
 
         //update schema registry
         await schemaCollection.deleteMany({})
         await schemaCollection.insertMany(Object.values(types).map(t => ({...t, _id: new ObjectId()})))
 
-        //update all other collections
         const existingCollections = new Set(Object.keys(this.schemas))
 
+        //update all other collections
         for (const typeName in types) {
             const newType = !existingCollections.delete(typeName)
 
@@ -98,17 +94,17 @@ export class MongoDriver implements DatabaseDriver {
             const mongoSchema = cargoToMongoSchema(type)
 
             if (newType) {
-                await db.createCollection(collectionName, {validator: mongoSchema, validationLevel: "strict"})
+                await this.db.createCollection(collectionName, {validator: mongoSchema, validationLevel: "strict"})
             }
             else {
-                await db.command({
+                await this.db.command({
                     collMod: collectionName,
                     validator: mongoSchema,
                     validationLevel: "strict"
                 })
             }
 
-            const collection = db.collection(collectionName)
+            const collection = this.db.collection(collectionName)
             if (!this.config.disableCollectionSchemaChecks) {
                 const mismatchCount = await collection.countDocuments({$nor: [cargoToMongoSchema(type)]})
                 if (mismatchCount > 0)
@@ -117,7 +113,7 @@ export class MongoDriver implements DatabaseDriver {
         }
 
         for (const typeName of existingCollections.values()) {
-            await db.collection(escapeMongoName(typeName)).drop()
+            await this.db.collection(escapeMongoName(typeName)).drop()
         }
 
         this.schemas = types
@@ -131,8 +127,18 @@ export class MongoDriver implements DatabaseDriver {
     query(entityName: string, options: QueryOptions): Promise<EntityResponse[]> {
         throw new Error("Method not implemented.")
     }
-    insert(entityName: string, data: Json): Promise<EntityResponseBase> {
-        throw new Error("Method not implemented.")
+    async insert(entityName: string, data: Json): Promise<EntityResponseBase> {
+        const schema = this.getSchema(entityName)
+
+        const collectionName = escapeMongoName(schema.name)
+        const collection = this.db.collection(collectionName)
+
+        const a = await collection.insertOne({
+            _id: new ObjectId(),
+            value: data
+        })
+
+        return { id: a.insertedId }
     }
     update(entityName: string, options: UpdateOptions): Promise<void> {
         throw new Error("Method not implemented.")
@@ -141,11 +147,14 @@ export class MongoDriver implements DatabaseDriver {
         throw new Error("Method not implemented.")
     }
 
-    private getDb() {
-        if (this.db === null && this.client !== null) this.db = this.client.db("cargo-cms")
+    get db() {
+        if (this._db != null)
+            return this._db
 
-        if (this.db === null) throw new Error("Client not initialized")
-        return this.db
+        if (this._db === null && this.client !== null) this._db = this.client.db("cargo-cms")
+
+        if (this._db === null) throw new Error("Client not initialized")
+        return this._db
     }
     private getSchemaCollection() {
         if (this.schemaCollection === null)
@@ -165,5 +174,14 @@ export class MongoDriver implements DatabaseDriver {
             return schemas[schema.name] = rest;
         })
         return schemas
+    }
+    private getSchema(entityName: string): TypeSchema {
+        if (this.schemas === null)
+            throw new Error("Client not initialized")
+
+        if (entityName in this.schemas)
+            return this.schemas[entityName]
+
+        throw new Error(`Definition for ${entityName} not found`)
     }
 }

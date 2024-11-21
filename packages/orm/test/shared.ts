@@ -1,5 +1,5 @@
 import {describe, expect, test} from "vitest"
-import {DatabaseDriver, DataSchema, diffSchema, ResponseSelector, schemaEquals, TypesSchema} from "../src";
+import {DatabaseDriver, DataSchema, diffSchema, ResponseSelector, TypesSchema} from "../src";
 
 type DriverFactory = () => Promise<DatabaseDriver>
 type DriverData = {

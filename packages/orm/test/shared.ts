@@ -66,7 +66,7 @@ export const setupDriversTest = (drivers: DriverData[]) => {
         }
 
         const dbTest = test.extend<{driver: DatabaseDriver}>({
-            driver: async ({}, use) => {
+            async "driver"({}, use: (v: DatabaseDriver) => Promise<void>) {
                 const driver = await init()
                 try {
                     await use(driver)

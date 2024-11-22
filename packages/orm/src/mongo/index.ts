@@ -1,10 +1,19 @@
-import { QueryOptions, UpdateOptions, DeleteOptions } from "./operations";
-import {TypeSchema, TypesSchema} from "./schema";
-import {DatabaseDriver, EntityResponse, EntityResponseBase} from "./types";
-import {applyDiffToTypeSchema, Diff, Json} from "./utils";
-import {Collection, Db, MongoClient, MongoClientOptions, ObjectId, WithId} from "mongodb";
+import { QueryOptions, UpdateOptions, DeleteOptions } from "../operations";
+import {TypeSchema, TypesSchema} from "../schema";
+import {DatabaseDriver, EntityResponse, EntityResponseBase} from "../types";
+import {applyDiffToTypeSchema, Diff, Json} from "../utils";
+import {
+    Collection,
+    Db,
+    MongoClient,
+    MongoClientOptions,
+    MongoServerError,
+    ObjectId,
+    WithId
+} from "mongodb";
 import deepEqual from "deep-equal";
-import {cargoToMongoSchema} from "./mongoUtils";
+import {cargoToMongoSchema, escapeMongoName, toMongoValue, zodToMongoSchema} from "./utils";
+import {z} from "zod";
 
 
 type MongoDriverConfig = {
@@ -13,16 +22,41 @@ type MongoDriverConfig = {
     disableCollectionSchemaChecks?: boolean
 }
 
-type SchemaEntry = WithId<TypeSchema>
+const CounterSchema = z.object({
+    target: z.string(),
+    index: z.number()
+})
+type CounterSchema = z.infer<typeof CounterSchema>
 
-const escapeMongoName = (name: string) => name.replace(/\./g, "#")
+type SchemaEntry = WithId<TypeSchema>
+type CounterEntry = WithId<CounterSchema>
+type GenericEntry = WithId<{ __id: number, value: any }>
+
+class CollectionsStore {
+    readonly schema: Collection<SchemaEntry>
+    readonly counters: Collection<CounterEntry>
+
+    private constructor(schema: Collection<SchemaEntry>, counters: Collection<CounterEntry>) {
+        this.schema = schema
+        this.counters = counters
+    }
+
+    static async create(db: Db): Promise<CollectionsStore> {
+        return new CollectionsStore(
+            await db.createCollection<SchemaEntry>("@schema", {}),
+            await db.createCollection<CounterEntry>("@counters", {
+                validator: zodToMongoSchema(CounterSchema)
+            })
+        )
+    }
+}
 
 export class MongoDriver implements DatabaseDriver {
     private readonly config: MongoDriverConfig
     private client: MongoClient | null = null
     private _db: Db | null = null
     private schemas: TypesSchema = {}
-    private schemaCollection: Collection<SchemaEntry> | null = null
+    private collections: CollectionsStore | null = null
 
     constructor(config: MongoDriverConfig) {
         this.config = config
@@ -32,7 +66,7 @@ export class MongoDriver implements DatabaseDriver {
         const client = new MongoClient(this.config.mongoUrl, this.config.clientOptions)
         this.client = await client.connect()
 
-        this.schemaCollection = await this.db.createCollection<SchemaEntry>("@schema", {})
+        this.collections = await CollectionsStore.create(this.db)
         this.schemas = await this.getSchemasFromDb()
     }
     async performIntegrityCheck(): Promise<void> {
@@ -76,11 +110,9 @@ export class MongoDriver implements DatabaseDriver {
         this._db = null
     }
     async applySchema(types: TypesSchema): Promise<void> {
-        const schemaCollection = this.getSchemaCollection()
-
         //update schema registry
-        await schemaCollection.deleteMany({})
-        await schemaCollection.insertMany(Object.values(types).map(t => ({...t, _id: new ObjectId()})))
+        await this.schemaCollection.deleteMany({})
+        await this.schemaCollection.insertMany(Object.values(types).map(t => ({...t, _id: new ObjectId()})))
 
         const existingCollections = new Set(Object.keys(this.schemas))
 
@@ -106,7 +138,7 @@ export class MongoDriver implements DatabaseDriver {
 
             const collection = this.db.collection(collectionName)
             if (!this.config.disableCollectionSchemaChecks) {
-                const mismatchCount = await collection.countDocuments({$nor: [cargoToMongoSchema(type)]})
+                const mismatchCount = await collection.countDocuments({$nor: [mongoSchema]})
                 if (mismatchCount > 0)
                     throw new Error(`Found documents in database that do not conform to the ${typeName} definition`)
             }
@@ -131,14 +163,23 @@ export class MongoDriver implements DatabaseDriver {
         const schema = this.getSchema(entityName)
 
         const collectionName = escapeMongoName(schema.name)
-        const collection = this.db.collection(collectionName)
+        const collection = this.db.collection<GenericEntry>(collectionName)
 
-        const a = await collection.insertOne({
-            _id: new ObjectId(),
-            value: data
-        })
+        const newId = await this.generateFreshId(schema)
 
-        return { id: a.insertedId }
+        try {
+             await collection.insertOne({
+                _id: new ObjectId(),
+                __id: newId,
+                value: toMongoValue(data, schema)
+            })
+        } catch (err) {
+            if (err instanceof MongoServerError && err.code === 121)
+                throw new Error(JSON.stringify(err.errInfo))
+            throw err
+        }
+
+        return { id: newId }
     }
     update(entityName: string, options: UpdateOptions): Promise<void> {
         throw new Error("Method not implemented.")
@@ -156,16 +197,14 @@ export class MongoDriver implements DatabaseDriver {
         if (this._db === null) throw new Error("Client not initialized")
         return this._db
     }
-    private getSchemaCollection() {
-        if (this.schemaCollection === null)
+    private get schemaCollection() {
+        if (this.collections === null)
             throw new Error("Client not initialized")
 
-        return this.schemaCollection
+        return this.collections.schema
     }
     private async getSchemasFromDb() {
-        const schemaCollection = this.getSchemaCollection()
-
-        const existingSchemas = await schemaCollection.find().toArray()
+        const existingSchemas = await this.schemaCollection.find().toArray()
 
         const schemas: TypesSchema = {}
 
@@ -183,5 +222,20 @@ export class MongoDriver implements DatabaseDriver {
             return this.schemas[entityName]
 
         throw new Error(`Definition for ${entityName} not found`)
+    }
+    private async generateFreshId(schema: TypeSchema): Promise<number> {
+        if (this.collections === null)
+            throw new Error("Client not initialized")
+
+        const collectionName = escapeMongoName(schema.name)
+
+        const r = await this.collections.counters.findOneAndUpdate({ target: collectionName }, {
+            $set: { target: collectionName },
+            $inc: { index: 1 }
+        }, { upsert: true, returnDocument: "after" })
+
+        if (r === null) throw new Error("Failed to obtain index counter")
+
+        return r.index
     }
 }

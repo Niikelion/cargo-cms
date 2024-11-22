@@ -19,11 +19,11 @@ export const GenericProperties = z.object({
 }).partial()
 export type GenericProperties = z.infer<typeof GenericProperties>
 
-export const PrimitiveFieldSchema = GenericProperties.extend({
+export const PrimitiveSchema = GenericProperties.extend({
     type: FieldType,
     values: PrimitiveType.array().optional()
 })
-export type PrimitiveFieldSchema = z.infer<typeof PrimitiveFieldSchema>
+export type PrimitiveSchema = z.infer<typeof PrimitiveSchema>
 
 const RelationFieldSchemaBase = z.object({
     type: z.literal("relation"),
@@ -31,7 +31,7 @@ const RelationFieldSchemaBase = z.object({
     toMultiple: z.boolean() // describes whether we expect other end to have multiple entries
 })
 
-export const RelationFieldSchema = z.union([
+export const RelationSchema = z.union([
     RelationFieldSchemaBase.extend({
         bidirectional: z.literal(false)
     }),
@@ -43,7 +43,7 @@ export const RelationFieldSchema = z.union([
         })
     })
 ])
-export type RelationFieldSchema = z.infer<typeof RelationFieldSchema>
+export type RelationSchema = z.infer<typeof RelationSchema>
 
 export const ArraySchema: z.ZodType<ArraySchema> = GenericProperties.extend({
     type: z.literal("array"),
@@ -77,15 +77,18 @@ export type UnionSchema = {
 } & GenericProperties
 
 export const DataSchema = z.union([
-    PrimitiveFieldSchema, RelationFieldSchema, ArraySchema, ObjectSchema, UnionSchema
+    PrimitiveSchema, ArraySchema, ObjectSchema, UnionSchema
 ])
 export type DataSchema = z.infer<typeof DataSchema>
 
 export const TypeSchema: z.ZodType<TypeSchema> = z.object({
     name: z.string(),
     type: z.literal("object"),
-    fields: z.record(z.string(), DataSchema)
+    fields: z.record(z.string(), z.union([DataSchema, RelationSchema]))
 })
-export type TypeSchema = Pick<ObjectSchema, "type" | "fields"> & { name: string }
+export type TypeSchema = Pick<ObjectSchema, "type"> & {
+    name: string
+    fields: Record<string, DataSchema | RelationSchema>
+}
 export const TypesSchema = z.record(z.string(), TypeSchema)
 export type TypesSchema = z.infer<typeof TypesSchema>

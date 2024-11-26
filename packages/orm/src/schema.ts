@@ -25,17 +25,25 @@ export const PrimitiveSchema = GenericProperties.extend({
 })
 export type PrimitiveSchema = z.infer<typeof PrimitiveSchema>
 
-const RelationFieldSchemaBase = z.object({
+export const PointerSchema = z.object({
+    type: z.literal("pointer"),
+    nullable: z.boolean().optional(),
+    target: z.string(),
+    multiple: z.boolean()
+})
+export type PointerSchema = z.infer<typeof PointerSchema>
+
+const RelationSchemaBase = z.object({
     type: z.literal("relation"),
     target: z.string(),
     toMultiple: z.boolean() // describes whether we expect other end to have multiple entries
 })
 
 export const RelationSchema = z.union([
-    RelationFieldSchemaBase.extend({
+    RelationSchemaBase.extend({
         bidirectional: z.literal(false)
     }),
-    RelationFieldSchemaBase.extend({
+    RelationSchemaBase.extend({
         bidirectional: z.literal(true),
         targetField: z.object({
             toMultiple: z.boolean(), // describes whether other end expects us to have multiple entries
@@ -69,15 +77,15 @@ export type ObjectSchema = {
 
 export const UnionSchema: z.ZodType<UnionSchema> = GenericProperties.extend({
     type: z.literal("union"),
-    allowedTypes: z.lazy(() => DataSchema.array())
+    allowedTypes: z.record(z.string(), z.lazy(() => DataSchema))
 })
 export type UnionSchema = {
     type: "union",
-    allowedTypes: DataSchema[]
+    allowedTypes: Record<string, DataSchema>
 } & GenericProperties
 
 export const DataSchema = z.union([
-    PrimitiveSchema, ArraySchema, ObjectSchema, UnionSchema
+    PrimitiveSchema, PointerSchema, ArraySchema, ObjectSchema, UnionSchema
 ])
 export type DataSchema = z.infer<typeof DataSchema>
 

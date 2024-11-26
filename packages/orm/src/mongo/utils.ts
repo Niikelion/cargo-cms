@@ -3,6 +3,8 @@ import {DataSchema, PrimitiveSchema, TypeSchema} from "../schema";
 import {isArray, isNumber, isObject, Json} from "../utils";
 import assert from "assert";
 import {Double, Int32} from "mongodb";
+import {ResponseSelector} from "../operations";
+import {mapRecord} from "@cargo-cms/utils"
 
 const allowedLiteralTypes = [ "number", "string", "boolean" ]
 
@@ -70,7 +72,7 @@ export const zodToMongoSchema = (schema: z.ZodType): object => {
 }
 
 type BsonPrimitiveSchema = {
-    bsonType: "string" | "double" | "int" | "bool" | "date" | "null"
+    bsonType: "string" | "double" | "int" | "bool" | "date" | "null" | "objectId"
 }
 type BsonArraySchema = {
     bsonType: "array"
@@ -137,6 +139,16 @@ const convertCargoToMongoSchema = (schema: DataSchema): BsonSchema => {
                     ...additionalProps
                 }
             }
+            case "pointer": {
+                if (schema.multiple) {
+                    return {
+                        bsonType: "array",
+                        items: { bsonType: "int" }
+                    }
+                }
+
+                return { bsonType: "int" }
+            }
             case "object": {
                 const entries = Object.entries(schema.fields)
                 return {
@@ -160,32 +172,30 @@ const convertCargoToMongoSchema = (schema: DataSchema): BsonSchema => {
                     ...additionalProps
                 }
             }
-            default:
-                throw new Error(`${schema.type} not supported`)
+            case "union": {
+                const entries = Object.entries(schema.allowedTypes)
+
+                return {
+                    oneOf: entries.map(([key, variantSchema]) => ({
+                        bsonType: "object",
+                        required: [ key ],
+                        properties: { [key]: convertCargoToMongoSchema(variantSchema) }
+                    }))
+                }
+            }
         }
     }
     return handleNullable(nullable, getValue())
 }
 
 export const cargoToMongoSchema = (schema: TypeSchema): MongoSchema => {
-    const fields: TypeSchema["fields"] = {
-        ...schema.fields,
-        __id: {
-            type: "integer",
-            unique: true,
-            nullable: false
-        }
-    }
-
-    const entries = Object.entries(fields)
+    const entries = Object.entries(schema.fields)
     return {
         $jsonSchema: {
             bsonType: "object",
-            required: ["__id", "value"],
+            required: ["_id", "value"],
             properties: {
-                __id: {
-                    bsonType: "int"
-                },
+                _id: { bsonType: "int" },
                 value: {
                     bsonType: "object",
                     properties: Object.fromEntries(entries.map(([fieldName, fieldSchema]) =>
@@ -233,4 +243,57 @@ export const toMongoValue = (value: Json, schema: TypeSchema): any => {
     const fields = entries.map(([key, value]) => ({key, value, field: schema.fields[key]})).filter(isNotRelation)
 
     return Object.fromEntries(fields.map(f => [f.key, convertToMongoValue(f.value, f.field)]))
+}
+
+export type MongoProjection = 1 | 0 | { [key: string]: MongoProjection }
+
+export const convertCargoSelectorToMongoProjection = (selector: ResponseSelector, schema: DataSchema, schemas: Record<string, TypeSchema>): MongoProjection => {
+    switch (schema.type) {
+        case "object": {
+            if (selector === true)
+                return mapRecord(schema.fields, _ => 0 as const)
+
+            return mapRecord(schema.fields, (f, k) =>
+                k in selector ? convertCargoSelectorToMongoProjection(selector[k], f, schemas) : 0
+            )
+        }
+        case "array":
+            return convertCargoSelectorToMongoProjection(selector, schema.elements, schemas)
+        case "union": {
+            if (selector === true)
+                return mapRecord(schema.allowedTypes, _ => 0 as const)
+
+            return mapRecord(schema.allowedTypes, (t, k) =>
+                k in selector ? convertCargoSelectorToMongoProjection(selector[k], t, schemas) : 0
+            )
+        }
+        case "text":
+        case "string":
+        case "integer":
+        case "float":
+        case "datetime":
+        case "boolean": {
+            if (selector !== true)
+                throw new Error("Primitive type have no subfields")
+
+            return 1
+        }
+        case "pointer":
+            return selector === true
+                ? 1
+                : cargoSelectorToMongoProjection(selector, schemas[schema.target], schemas)
+    }
+}
+
+export const cargoSelectorToMongoProjection = (selector: ResponseSelector, schema: TypeSchema, schemas: Record<string, TypeSchema>): MongoProjection => {
+    if (selector === true)
+        return mapRecord(schema.fields, _ => 0 as const)
+
+    return mapRecord(schema.fields, (f, k) => {
+        if (!(k in selector)) return 0
+
+        return f.type === "relation"
+            ? cargoSelectorToMongoProjection(selector[k], schemas[f.target], schemas)
+            : convertCargoSelectorToMongoProjection(selector[k], f, schemas);
+    })
 }

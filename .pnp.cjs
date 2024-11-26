@@ -53,7 +53,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./",\
         "packageDependencies": [\
           ["turbo", "npm:2.0.9"],\
-          ["typescript", "patch:typescript@npm%3A5.5.3#optional!builtin<compat/typescript>::version=5.5.3&hash=379a07"]\
+          ["typescript", "patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=379a07"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -126,6 +126,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./packages/orm/",\
         "packageDependencies": [\
           ["@cargo-cms/orm", "workspace:packages/orm"],\
+          ["@cargo-cms/utils", "workspace:packages/utils"],\
           ["@types/deep-equal", "npm:1.0.4"],\
           ["@types/md5", "npm:2.3.5"],\
           ["@types/node", "npm:20.14.11"],\
@@ -147,6 +148,8 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./packages/utils/",\
         "packageDependencies": [\
           ["@cargo-cms/utils", "workspace:packages/utils"],\
+          ["@types/node", "npm:22.9.3"],\
+          ["typescript", "patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=379a07"],\
           ["zod", "npm:3.23.8"]\
         ],\
         "linkType": "SOFT"\
@@ -813,6 +816,14 @@ const RAW_RUNTIME_STATE =
           ["undici-types", "npm:5.26.5"]\
         ],\
         "linkType": "HARD"\
+      }],\
+      ["npm:22.9.3", {\
+        "packageLocation": "../../Users/nicra/AppData/Local/Yarn/Berry/cache/@types-node-npm-22.9.3-bc9b3f960a-10c0.zip/node_modules/@types/node/",\
+        "packageDependencies": [\
+          ["@types/node", "npm:22.9.3"],\
+          ["undici-types", "npm:6.19.8"]\
+        ],\
+        "linkType": "HARD"\
       }]\
     ]],\
     ["@types/qs", [\
@@ -1449,7 +1460,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["cargo-cms", "workspace:."],\
           ["turbo", "npm:2.0.9"],\
-          ["typescript", "patch:typescript@npm%3A5.5.3#optional!builtin<compat/typescript>::version=5.5.3&hash=379a07"]\
+          ["typescript", "patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=379a07"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -5482,6 +5493,13 @@ const RAW_RUNTIME_STATE =
           ["typescript", "patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"]\
         ],\
         "linkType": "HARD"\
+      }],\
+      ["patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=379a07", {\
+        "packageLocation": "../../Users/nicra/AppData/Local/Yarn/Berry/cache/typescript-patch-67c219bcd7-10c0.zip/node_modules/typescript/",\
+        "packageDependencies": [\
+          ["typescript", "patch:typescript@npm%3A5.7.2#optional!builtin<compat/typescript>::version=5.7.2&hash=379a07"]\
+        ],\
+        "linkType": "HARD"\
       }]\
     ]],\
     ["undici-types", [\
@@ -5489,6 +5507,13 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../Users/nicra/AppData/Local/Yarn/Berry/cache/undici-types-npm-5.26.5-de4f7c7bb9-10c0.zip/node_modules/undici-types/",\
         "packageDependencies": [\
           ["undici-types", "npm:5.26.5"]\
+        ],\
+        "linkType": "HARD"\
+      }],\
+      ["npm:6.19.8", {\
+        "packageLocation": "../../Users/nicra/AppData/Local/Yarn/Berry/cache/undici-types-npm-6.19.8-9f12285b7a-10c0.zip/node_modules/undici-types/",\
+        "packageDependencies": [\
+          ["undici-types", "npm:6.19.8"]\
         ],\
         "linkType": "HARD"\
       }]\

@@ -16,6 +16,6 @@
   "private": true,
   "devDependencies": {
     "turbo": "^2.0.9",
-    "typescript": "^5.5.3"
+    "typescript": "^5.7.2"
   }
 }

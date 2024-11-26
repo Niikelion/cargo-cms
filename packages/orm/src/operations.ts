@@ -1,6 +1,5 @@
-//export type ResponseSelector = true | string | { [k: string]: ResponseSelector } | (string | { [k: string]: ResponseSelector })[]
 import {PrimitiveType} from "./schema";
-import {Json, JsonObject} from "./utils";
+import {JsonObject} from "./utils";
 
 export type ResponseSelector = true | { [k: string]: ResponseSelector }
 

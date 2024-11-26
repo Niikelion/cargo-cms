@@ -14,7 +14,7 @@ const textType: DataSchema = { type: "text" }
 const booleanType: DataSchema = { type: "boolean" }
 const integerType: DataSchema = { type: "integer" }
 const doubleType: DataSchema = { type: "float" }
-const linkField = (target: string): DataSchema => ({ type: "relation", target, toMultiple: false, bidirectional: false })
+const linkField = (target: string): DataSchema => ({ type: "pointer", target, multiple: false })
 
 export const setupDriversTest = (drivers: DriverData[]) => {
     describe.each(drivers.map(data => ({ createDriver: data.factory, driverName: data.name })))(`$driverName database driver`, async ({createDriver}) => {

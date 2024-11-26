@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@cargo-cms/utils": "workspace:^",
     "@types/deep-equal": "^1.0.4",
     "@types/md5": "^2.3.5",
     "deep-equal": "^2.2.3",

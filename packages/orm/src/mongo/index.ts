@@ -12,7 +12,13 @@ import {
     WithId
 } from "mongodb";
 import deepEqual from "deep-equal";
-import {cargoToMongoSchema, escapeMongoName, toMongoValue, zodToMongoSchema} from "./utils";
+import {
+    cargoSelectorToMongoProjection,
+    cargoToMongoSchema,
+    escapeMongoName,
+    toMongoValue,
+    zodToMongoSchema
+} from "./utils";
 import {z} from "zod";
 
 
@@ -30,7 +36,7 @@ type CounterSchema = z.infer<typeof CounterSchema>
 
 type SchemaEntry = WithId<TypeSchema>
 type CounterEntry = WithId<CounterSchema>
-type GenericEntry = WithId<{ __id: number, value: any }>
+type GenericEntry = { _id: number, value: any }
 
 class CollectionsStore {
     readonly schema: Collection<SchemaEntry>
@@ -137,6 +143,8 @@ export class MongoDriver implements DatabaseDriver {
             }
 
             const collection = this.db.collection(collectionName)
+            await collection.createIndex({ _id: 1 })
+
             if (!this.config.disableCollectionSchemaChecks) {
                 const mismatchCount = await collection.countDocuments({$nor: [mongoSchema]})
                 if (mismatchCount > 0)
@@ -144,6 +152,7 @@ export class MongoDriver implements DatabaseDriver {
             }
         }
 
+        //drop excess collections
         for (const typeName of existingCollections.values()) {
             await this.db.collection(escapeMongoName(typeName)).drop()
         }
@@ -156,21 +165,30 @@ export class MongoDriver implements DatabaseDriver {
     async getCurrentSchema(): Promise<TypesSchema> {
         return this.schemas
     }
-    query(entityName: string, options: QueryOptions): Promise<EntityResponse[]> {
-        throw new Error("Method not implemented.")
+    async query(entityName: string, options: QueryOptions): Promise<EntityResponse[]> {
+        const { schema, collection } = this.getCollection(entityName)
+
+        const projection = cargoSelectorToMongoProjection(options.selector, schema, this.schemas)
+
+        const result = await collection.find({
+            //TODO: filter
+        }, {
+            projection: {
+                value: projection
+            },
+            sort: undefined //TODO: sort
+        }).toArray() as GenericEntry[]
+
+        return result.map(v => ({ id: v._id, ...v.value }))
     }
     async insert(entityName: string, data: Json): Promise<EntityResponseBase> {
-        const schema = this.getSchema(entityName)
-
-        const collectionName = escapeMongoName(schema.name)
-        const collection = this.db.collection<GenericEntry>(collectionName)
+        const { schema, collection } = this.getCollection(entityName)
 
         const newId = await this.generateFreshId(schema)
 
         try {
              await collection.insertOne({
-                _id: new ObjectId(),
-                __id: newId,
+                _id: newId,
                 value: toMongoValue(data, schema)
             })
         } catch (err) {
@@ -237,5 +255,14 @@ export class MongoDriver implements DatabaseDriver {
         if (r === null) throw new Error("Failed to obtain index counter")
 
         return r.index
+    }
+    private getCollection(entityName: string) {
+        const schema = this.getSchema(entityName)
+        const collection = this.db.collection<GenericEntry>(schema.name)
+
+        return {
+            schema,
+            collection
+        }
     }
 }

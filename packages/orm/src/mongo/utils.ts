@@ -1,10 +1,16 @@
 import {z} from "zod";
 import {DataSchema, PrimitiveSchema, TypeSchema} from "../schema";
-import {isArray, isNumber, isObject, Json} from "../utils";
+import {isArray, isCombinedOperationFilter, isNumber, isObject, Json} from "../utils";
 import assert from "assert";
-import {Double, Int32} from "mongodb";
-import {ResponseSelector} from "../operations";
-import {mapRecord} from "@cargo-cms/utils"
+import {Condition, Double, Filter, FilterOperations, Int32} from "mongodb";
+import {
+    CombineOperationFilter,
+    ComparisonOperationFilter,
+    ComparisonOperationFilterInput,
+    FilterType,
+    ResponseSelector
+} from "../operations";
+import {DiscriminatedUnionToTypeMap, mapRecord, typesMapToDiscriminatedUnion} from "@cargo-cms/utils"
 
 const allowedLiteralTypes = [ "number", "string", "boolean" ]
 
@@ -296,4 +302,42 @@ export const cargoSelectorToMongoProjection = (selector: ResponseSelector, schem
             ? cargoSelectorToMongoProjection(selector[k], schemas[f.target], schemas)
             : convertCargoSelectorToMongoProjection(selector[k], f, schemas);
     })
+}
+
+const convertCargoComparisonFilterToMongoFilter = (filter: Record<string, ComparisonOperationFilterInput>): Record<string, Condition<object>> => {
+    return mapRecord(filter, (cond): FilterOperations<object> => {
+        const c = typesMapToDiscriminatedUnion<ComparisonOperationFilter>(cond)
+
+        switch (c.type) {
+            case "$eq":
+            case "$lt":
+            case "$lte":
+            case "$gt":
+            case "$gte":
+            case "$in":
+                return { [c.type]: c.value }
+            case "$neq":
+                return { "$ne": c.value }
+            case "$null":
+                return { $eq: null }
+            case "$between":
+                return { $gte: c.value[0], $lt: c.value[1] }
+            case "$like":
+                return { $regex: c.value }
+        }
+    })
+}
+
+export const cargoToMongoFilter = (filter: FilterType): Filter<any> => {
+    if (isCombinedOperationFilter(filter)) {
+        const c = typesMapToDiscriminatedUnion<CombineOperationFilter>(filter as DiscriminatedUnionToTypeMap<CombineOperationFilter>)
+
+        switch (c.type) {
+            case "$not": return { $nor: [ cargoToMongoFilter(c.value) ] }
+            case "$and": return { $and: c.value.map(cargoToMongoFilter) }
+            case "$or":  return { $or: c.value.map(cargoToMongoFilter) }
+        }
+    } else {
+        return convertCargoComparisonFilterToMongoFilter(filter)
+    }
 }

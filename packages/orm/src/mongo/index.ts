@@ -13,7 +13,7 @@ import {
 } from "mongodb";
 import deepEqual from "deep-equal";
 import {
-    cargoSelectorToMongoProjection,
+    cargoSelectorToMongoProjection, cargoToMongoFilter,
     cargoToMongoSchema,
     escapeMongoName,
     toMongoValue,
@@ -170,14 +170,12 @@ export class MongoDriver implements DatabaseDriver {
 
         const projection = cargoSelectorToMongoProjection(options.selector, schema, this.schemas)
 
-        const result = await collection.find({
-            //TODO: filter
-        }, {
+        const result = (await collection.find(options.filter ? cargoToMongoFilter(options.filter) : {}, {
             projection: {
                 value: projection
             },
             sort: undefined //TODO: sort
-        }).toArray() as GenericEntry[]
+        }).toArray()) as GenericEntry[]
 
         return result.map(v => ({ id: v._id, ...v.value }))
     }

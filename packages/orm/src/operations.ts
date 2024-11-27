@@ -1,28 +1,40 @@
 import {PrimitiveType} from "./schema";
 import {JsonObject} from "./utils";
+import {DiscriminatedUnionToTypeMap} from "@cargo-cms/utils";
 
 export type ResponseSelector = true | { [k: string]: ResponseSelector }
 
-export type ComparisonOperationFilterType =
-    | { $eq: PrimitiveType }
-    | { $neq: PrimitiveType }
-    | { $lt: PrimitiveType }
-    | { $lte: PrimitiveType }
-    | { $gt: PrimitiveType }
-    | { $gte: PrimitiveType }
-    | { $like: PrimitiveType }
-    | { $null: boolean }
-    | { $in: PrimitiveType[] }
-    | { $between: [PrimitiveType, PrimitiveType] }
+type COF<T extends string, V> = {
+    type: T
+    value: V
+}
+export type ComparisonOperationFilter =
+    | COF<"$eq", PrimitiveType>
+    | COF<"$neq", PrimitiveType>
+    | COF<"$lt", PrimitiveType>
+    | COF<"$lte", PrimitiveType>
+    | COF<"$gt", PrimitiveType>
+    | COF<"$gte", PrimitiveType>
+    | COF<"$like", string>
+    | COF<"$null", boolean>
+    | COF<"$in", PrimitiveType[]>
+    | COF<"$between", [PrimitiveType, PrimitiveType]>
 
-export type CombineOperationFilterType =
+export type ComparisonOperationFilterInput = DiscriminatedUnionToTypeMap<ComparisonOperationFilter>
+
+export type CombineOperationFilter =
+    | COF<"$not", FilterType>
+    | COF<"$and", FilterType[]>
+    | COF<"$or", FilterType[]>
+
+export type CombineOperationFilterInput =
     | { $not: FilterType }
     | { $and: FilterType[] }
     | { $or: FilterType[] }
 
 export type FilterType =
-    | { [k: string]: ComparisonOperationFilterType }
-    | CombineOperationFilterType
+    | { [k: string]: ComparisonOperationFilterInput }
+    | CombineOperationFilterInput
 
 export type SortType = string[] | string
 

@@ -1,7 +1,7 @@
 import {TypesSchema} from "./schema";
 
 
-import {FilterType, CombineOperationFilterType} from "./operations";
+import {FilterType, CombineOperationFilterInput} from "./operations";
 
 const {applyChangeset, diff} = require("json-diff-ts")
 
@@ -43,7 +43,7 @@ export const CombineFilterOperations = [
     "$or"
 ] as const
 
-export function isCombinedOperationFilter(v: FilterType): v is CombineOperationFilterType {
+export function isCombinedOperationFilter(v: FilterType): v is CombineOperationFilterInput {
     if (!isObject(v)) return false
 
     const keys = Object.keys(v)

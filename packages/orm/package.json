@@ -7,7 +7,7 @@
     "build": "tsc",
     "test.setup": "yarn exec docker-compose --file ./test/compose.yml up --build --detach --force-recreate -V",
     "test.cleanup": "echo docker-compose --file ./test/compose.yml down",
-    "test": "yarn test.setup && vitest run || yarn test.cleanup",
+    "test": "yarn test.setup && vitest run && yarn test.cleanup",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

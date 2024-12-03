@@ -10,7 +10,7 @@ import {
     FilterType,
     ResponseSelector
 } from "../operations";
-import {DiscriminatedUnionToTypeMap, mapRecord, typesMapToDiscriminatedUnion} from "@cargo-cms/utils"
+import {DiscriminatedUnionToTypeMap, mapRecord, mapRecordEntries, typesMapToDiscriminatedUnion} from "@cargo-cms/utils"
 
 const allowedLiteralTypes = [ "number", "string", "boolean" ]
 
@@ -216,30 +216,6 @@ export const cargoToMongoSchema = (schema: TypeSchema): MongoSchema => {
 
 export const escapeMongoName = (name: string) => name.replace(/\./g, "#")
 
-const convertToMongoValue = (value: Json, schema: DataSchema): any => {
-    switch (schema.type) {
-        case "integer": {
-            assert.ok(isNumber(value))
-            return new Int32(value)
-        }
-        case "float": {
-            assert.ok(isNumber(value))
-            return new Double(value)
-        }
-        case "array": {
-            assert.ok(isArray(value))
-            return value.map(v => convertToMongoValue(v, schema.elements))
-        }
-        case "object": {
-            assert.ok(isObject(value))
-            return Object.fromEntries(Object.entries(value).map(([key, v]) =>
-                [key, convertToMongoValue(v, schema.fields[key])])
-            )
-        }
-        default: return value
-    }
-}
-
 const isNotRelation = (v: {key: string, value: Json, field: TypeSchema["fields"][string]}): v is {key: string, value: Json, field: DataSchema } => v.field.type !== "relation"
 
 export const toMongoValue = (value: Json, schema: TypeSchema): any => {
@@ -248,65 +224,99 @@ export const toMongoValue = (value: Json, schema: TypeSchema): any => {
     const entries = Object.entries(value)
     const fields = entries.map(([key, value]) => ({key, value, field: schema.fields[key]})).filter(isNotRelation)
 
-    return Object.fromEntries(fields.map(f => [f.key, convertToMongoValue(f.value, f.field)]))
+    const convert = (value: Json, schema: DataSchema): any => {
+        switch (schema.type) {
+            case "integer": {
+                assert.ok(isNumber(value))
+                return new Int32(value)
+            }
+            case "float": {
+                assert.ok(isNumber(value))
+                return new Double(value)
+            }
+            case "array": {
+                assert.ok(isArray(value))
+                return value.map(v => convert(v, schema.elements))
+            }
+            case "object": {
+                assert.ok(isObject(value))
+                return Object.fromEntries(Object.entries(value).map(([key, v]) =>
+                    [key, convert(v, schema.fields[key])])
+                )
+            }
+            default: return value
+        }
+    }
+
+    return Object.fromEntries(fields.map(f => [f.key, convert(f.value, f.field)]))
 }
 
 export type MongoProjection = 1 | 0 | { [key: string]: MongoProjection }
 
-export const convertCargoSelectorToMongoProjection = (selector: ResponseSelector, schema: DataSchema, schemas: Record<string, TypeSchema>): MongoProjection => {
-    switch (schema.type) {
-        case "object": {
-            if (selector === true)
-                return mapRecord(schema.fields, _ => 0 as const)
-
-            return mapRecord(schema.fields, (f, k) =>
-                k in selector ? convertCargoSelectorToMongoProjection(selector[k], f, schemas) : 0
-            )
-        }
-        case "array":
-            return convertCargoSelectorToMongoProjection(selector, schema.elements, schemas)
-        case "union": {
-            if (selector === true)
-                return mapRecord(schema.allowedTypes, _ => 0 as const)
-
-            return mapRecord(schema.allowedTypes, (t, k) =>
-                k in selector ? convertCargoSelectorToMongoProjection(selector[k], t, schemas) : 0
-            )
-        }
-        case "text":
-        case "string":
-        case "integer":
-        case "float":
-        case "datetime":
-        case "boolean": {
-            if (selector !== true)
-                throw new Error("Primitive type have no subfields")
-
-            return 1
-        }
-        case "pointer":
-            return selector === true
-                ? 1
-                : cargoSelectorToMongoProjection(selector, schemas[schema.target], schemas)
-    }
-}
-
 export const cargoSelectorToMongoProjection = (selector: ResponseSelector, schema: TypeSchema, schemas: Record<string, TypeSchema>): MongoProjection => {
-    if (selector === true)
+    if (selector === true || selector === 1)
         return mapRecord(schema.fields, _ => 0 as const)
 
-    return mapRecord(schema.fields, (f, k) => {
+    const convert = (selector: ResponseSelector, schema: DataSchema): MongoProjection => {
+        switch (schema.type) {
+            case "object": {
+                if (selector === true || selector === 1)
+                    return mapRecord(schema.fields, _ => 0 as const)
+
+                return mapRecord(schema.fields, (f, k) =>
+                    k in selector ? convert(selector[k], f) : 0
+                )
+            }
+            case "array":
+                return convert(selector, schema.elements)
+            case "union": {
+                if (selector === true || selector === 1)
+                    return mapRecord(schema.allowedTypes, _ => 0 as const)
+
+                return mapRecord(schema.allowedTypes, (t, k) =>
+                    k in selector ? convert(selector[k], t) : 0
+                )
+            }
+            case "text":
+            case "string":
+            case "integer":
+            case "float":
+            case "datetime":
+            case "boolean": {
+                if (selector !== true && selector !== 1) throw new Error("Primitive type have no subfields")
+                return 1
+            }
+            case "pointer":
+                return selector === true || selector === 1
+                    ? 1
+                    : cargoSelectorToMongoProjection(selector, schemas[schema.target], schemas)
+        }
+    }
+
+    const normalize = (projection: MongoProjection): MongoProjection => {
+        if (projection === 0 || projection === 1)
+            return projection
+
+        const entries = Object.entries(mapRecord(projection, normalize))
+
+        if (entries.every(v => v[1] !== 0) || entries.every(v => v[1] !== 1))
+            return projection
+
+        return Object.fromEntries(entries.filter(v => v[1] !== 0))
+    }
+
+    return normalize(mapRecord(schema.fields, (f, k) => {
         if (!(k in selector)) return 0
 
         return f.type === "relation"
             ? cargoSelectorToMongoProjection(selector[k], schemas[f.target], schemas)
-            : convertCargoSelectorToMongoProjection(selector[k], f, schemas);
-    })
+            : convert(selector[k], f);
+    }))
 }
 
 const convertCargoComparisonFilterToMongoFilter = (filter: Record<string, ComparisonOperationFilterInput>): Record<string, Condition<object>> => {
-    return mapRecord(filter, (cond): FilterOperations<object> => {
-        const c = typesMapToDiscriminatedUnion<ComparisonOperationFilter>(cond)
+    return mapRecordEntries(mapRecord(filter, (cond): FilterOperations<object> => {
+        const c = typesMapToDiscriminatedUnion<ComparisonOperationFilter>(cond as DiscriminatedUnionToTypeMap<ComparisonOperationFilter>)
 
         switch (c.type) {
             case "$eq":
@@ -319,13 +329,13 @@ const convertCargoComparisonFilterToMongoFilter = (filter: Record<string, Compar
             case "$neq":
                 return { "$ne": c.value }
             case "$null":
-                return { $eq: null }
+                return c.value ? { $eq: null } : { $not: { $eq: null } }
             case "$between":
                 return { $gte: c.value[0], $lt: c.value[1] }
             case "$like":
                 return { $regex: c.value }
         }
-    })
+    }), (cond, field) => [`value.${field}`, cond])
 }
 
 export const cargoToMongoFilter = (filter: FilterType): Filter<any> => {

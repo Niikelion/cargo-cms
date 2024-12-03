@@ -1,19 +1,12 @@
-import { QueryOptions, UpdateOptions, DeleteOptions } from "../operations";
+import {DeleteOptions, QueryOptions, UpdateOptions} from "../operations";
 import {TypeSchema, TypesSchema} from "../schema";
 import {DatabaseDriver, EntityResponse, EntityResponseBase} from "../types";
 import {applyDiffToTypeSchema, Diff, Json} from "../utils";
-import {
-    Collection,
-    Db,
-    MongoClient,
-    MongoClientOptions,
-    MongoServerError,
-    ObjectId,
-    WithId
-} from "mongodb";
+import {Collection, Db, MongoClient, MongoClientOptions, MongoServerError, ObjectId, WithId} from "mongodb";
 import deepEqual from "deep-equal";
 import {
-    cargoSelectorToMongoProjection, cargoToMongoFilter,
+    cargoSelectorToMongoProjection,
+    cargoToMongoFilter,
     cargoToMongoSchema,
     escapeMongoName,
     toMongoValue,
@@ -170,14 +163,19 @@ export class MongoDriver implements DatabaseDriver {
 
         const projection = cargoSelectorToMongoProjection(options.selector, schema, this.schemas)
 
-        const result = (await collection.find(options.filter ? cargoToMongoFilter(options.filter) : {}, {
-            projection: {
-                value: projection
-            },
-            sort: undefined //TODO: sort
-        }).toArray()) as GenericEntry[]
+        let cursor = collection.aggregate()
+        if (options.filter)
+            cursor = cursor.match(cargoToMongoFilter(options.filter))
 
-        return result.map(v => ({ id: v._id, ...v.value }))
+        console.log({projection}, {depth: 10})
+
+        return await cursor.project({value: projection}).addStage({
+            $replaceRoot: {
+                newRoot: {
+                    $mergeObjects: [{id: "$_id"}, "$value"]
+                }
+            }
+        }).toArray() as EntityResponse[]
     }
     async insert(entityName: string, data: Json): Promise<EntityResponseBase> {
         const { schema, collection } = this.getCollection(entityName)

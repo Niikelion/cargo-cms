@@ -143,6 +143,45 @@ export const setupDriversTest = (drivers: DriverData[]) => {
 
             expect(elementsAfterDeletion.length).toBe(0)
         })
+        dbTest('query operations', async ({driver}) => {
+            await driver.applySchema(complexSchema)
+
+            const idA = await driver.insert("user", {
+                name: "a",
+                password: "***",
+                verified: true,
+                bio: "some bio",
+                level: 1,
+                balance: 0,
+                tags: [
+                    {name: "admin"}
+                ]
+            })
+
+            const queried1 = await driver.query("user", {
+                selector: { name: 1 }
+            })
+            expect(queried1, "single field").toEqual([{
+                id: 1,
+                name: "a"
+            }])
+
+            const queried2 = await driver.query("user", {
+                selector: { tags: 1 }
+            })
+            expect(queried2, "shallow array").toEqual([{
+                id: 1,
+                tags: [{}]
+            }])
+
+            const queried3 = await driver.query("user", {
+                selector: { tags: { name: 1 } }
+            })
+            expect(queried3, "deep array").toEqual([{
+                id: 1,
+                tags: [{ name: "admin" }]
+            }])
+        })
         dbTest('filter operations', async ({driver}) => {
             await driver.applySchema(complexSchema)
 

@@ -2,7 +2,7 @@ import {PrimitiveType} from "./schema";
 import {JsonObject} from "./utils";
 import {DiscriminatedUnionToTypeMap} from "@cargo-cms/utils";
 
-export type ResponseSelector = true | { [k: string]: ResponseSelector }
+export type ResponseSelector = true | 1 | { [k: string]: ResponseSelector }
 
 type COF<T extends string, V> = {
     type: T
@@ -20,7 +20,17 @@ export type ComparisonOperationFilter =
     | COF<"$in", PrimitiveType[]>
     | COF<"$between", [PrimitiveType, PrimitiveType]>
 
-export type ComparisonOperationFilterInput = DiscriminatedUnionToTypeMap<ComparisonOperationFilter>
+export type ComparisonOperationFilterInput =
+    | { $eq: PrimitiveType }
+    | { $neq: PrimitiveType }
+    | { $lt: PrimitiveType }
+    | { $lte: PrimitiveType }
+    | { $gt: PrimitiveType }
+    | { $gte: PrimitiveType }
+    | { $like: string }
+    | { $null: boolean }
+    | { $in: PrimitiveType[] }
+    | { $between: [PrimitiveType, PrimitiveType] }
 
 export type CombineOperationFilter =
     | COF<"$not", FilterType>

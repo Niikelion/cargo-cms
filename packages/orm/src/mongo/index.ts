@@ -164,10 +164,9 @@ export class MongoDriver implements DatabaseDriver {
         const projection = cargoSelectorToMongoProjection(options.selector, schema, this.schemas)
 
         let cursor = collection.aggregate()
+
         if (options.filter)
             cursor = cursor.match(cargoToMongoFilter(options.filter))
-
-        console.log({projection}, {depth: 10})
 
         return await cursor.project({value: projection}).addStage({
             $replaceRoot: {

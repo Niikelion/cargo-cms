@@ -14,9 +14,9 @@ export const PrimitiveType = z.union([z.number(), z.string(), z.boolean(), z.nul
 export type PrimitiveType = z.infer<typeof PrimitiveType>
 
 export const GenericProperties = z.object({
-    unique: z.boolean(),
-    nullable: z.boolean()
-}).partial()
+    unique: z.boolean().optional(),
+    nullable: z.boolean().optional()
+})
 export type GenericProperties = z.infer<typeof GenericProperties>
 
 export const PrimitiveSchema = GenericProperties.extend({
@@ -70,6 +70,7 @@ export const ObjectSchema: z.ZodType<ObjectSchema> = GenericProperties.extend({
     type: z.literal("object"),
     fields: z.record(z.string(), z.lazy(() => DataSchema))
 })
+
 export type ObjectSchema = {
     type: "object",
     fields: Record<string, DataSchema>
@@ -77,14 +78,14 @@ export type ObjectSchema = {
 
 export const UnionSchema: z.ZodType<UnionSchema> = GenericProperties.extend({
     type: z.literal("union"),
-    allowedTypes: z.record(z.string(), z.lazy(() => DataSchema))
+    allowedTypes: z.record(z.lazy(() => DataSchema))
 })
 export type UnionSchema = {
     type: "union",
     allowedTypes: Record<string, DataSchema>
 } & GenericProperties
 
-export const DataSchema = z.union([
+export const DataSchema: z.ZodType<DataSchema> = z.union([
     PrimitiveSchema, PointerSchema, ArraySchema, ObjectSchema, UnionSchema
 ])
 export type DataSchema = z.infer<typeof DataSchema>
@@ -92,11 +93,11 @@ export type DataSchema = z.infer<typeof DataSchema>
 export const TypeSchema: z.ZodType<TypeSchema> = z.object({
     name: z.string(),
     type: z.literal("object"),
-    fields: z.record(z.string(), z.union([DataSchema, RelationSchema]))
+    fields: z.record(z.union([DataSchema, RelationSchema]))
 })
 export type TypeSchema = Pick<ObjectSchema, "type"> & {
     name: string
     fields: Record<string, DataSchema | RelationSchema>
 }
-export const TypesSchema = z.record(z.string(), TypeSchema)
+export const TypesSchema = z.record(TypeSchema)
 export type TypesSchema = z.infer<typeof TypesSchema>

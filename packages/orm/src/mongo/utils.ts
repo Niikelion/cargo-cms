@@ -27,7 +27,7 @@ const convertZodToMongoSchema = (schema: z.ZodType): object => {
 
         return {
             type: "object",
-            required: entries.filter(([_, elemSchema]) => !(elemSchema instanceof z.ZodOptional)).map(([key]) => key),
+            required: entries.filter(([_, elemSchema]) => !(elemSchema instanceof z.ZodOptional)).map(([key, _]) => key),
             properties: Object.fromEntries(entries.map(([key, elemSchema]) =>
                 [ key, convertZodToMongoSchema(elemSchema instanceof z.ZodOptional ? elemSchema.unwrap() : elemSchema as z.ZodType)]
             ))
@@ -160,7 +160,7 @@ const convertCargoToMongoSchema = (schema: DataSchema): BsonSchema => {
                 return {
                     bsonType: "object",
                     properties: Object.fromEntries(entries.map(([fieldName, fieldSchema]) => [fieldName, convertCargoToMongoSchema(fieldSchema)])),
-                    required: entries.map(([key]) => key)
+                    required: entries.map(([key, _]) => key)
                 }
             }
             case "array": {
@@ -194,24 +194,29 @@ const convertCargoToMongoSchema = (schema: DataSchema): BsonSchema => {
     return handleNullable(nullable, getValue())
 }
 
+const isValueDefined = <K, V>(v: [K, V | undefined]): v is [K, V] => v[1] !== undefined
+
 export const cargoToMongoSchema = (schema: TypeSchema): MongoSchema => {
     const entries = Object.entries(schema.fields)
-    return {
-        $jsonSchema: {
-            bsonType: "object",
-            required: ["_id", "value"],
-            properties: {
-                _id: { bsonType: "int" },
-                value: {
-                    bsonType: "object",
-                    properties: Object.fromEntries(entries.map(([fieldName, fieldSchema]) =>
-                        [fieldName, fieldSchema.type === "relation" ? undefined : convertCargoToMongoSchema(fieldSchema)]
-                    ).filter(([_, v]) => v !== undefined)),
-                    required: entries.map(([key]) => key)
-                }
+
+    const required: Array<string> = entries.map(([key, _]) => key)
+    const properties: Record<string, BsonSchema> = Object.fromEntries(entries.map(([fieldName, fieldSchema]) =>
+        [fieldName, fieldSchema.type === "relation" ? undefined : convertCargoToMongoSchema(fieldSchema)]
+    ).filter(isValueDefined<string, BsonSchema>))
+
+    const bsonSchema: BsonObjectSchema = {
+        bsonType: "object",
+        required: ["_id", "value"],
+        properties: {
+            _id: { bsonType: "int" },
+            value: {
+                bsonType: "object",
+                properties, required
             }
         }
     }
+
+    return { $jsonSchema: bsonSchema }
 }
 
 export const escapeMongoName = (name: string) => name.replace(/\./g, "#")
@@ -299,17 +304,16 @@ export const cargoSelectorToMongoProjection = (selector: ResponseSelector, schem
 
         const entries = Object.entries(mapRecord(projection, normalize))
 
-        if (entries.every(v => v[1] !== 0) || entries.every(v => v[1] !== 1))
-            return projection
+        const filteredEntries = entries.filter(v => v[1] !== 1)
 
-        return Object.fromEntries(entries.filter(v => v[1] !== 0))
+        return filteredEntries.length === 0 ? 0 : Object.fromEntries(filteredEntries)
     }
 
     return normalize(mapRecord(schema.fields, (f, k) => {
         if (!(k in selector)) return 0
 
         return f.type === "relation"
-            ? cargoSelectorToMongoProjection(selector[k], schemas[f.target], schemas)
+            ? cargoSelectorToMongoProjection(selector[k], schemas[f.type], schemas)
             : convert(selector[k], f);
     }))
 }
